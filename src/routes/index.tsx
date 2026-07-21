@@ -115,6 +115,23 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// Escape, then re-allow a small set of inline HTML tags commonly used in question text.
+const ALLOWED_TAGS = ["span", "sub", "sup", "b", "i", "em", "strong", "br", "u", "small"];
+function sanitizeInlineHtml(raw: string): string {
+  const escaped = escapeHtml(raw);
+  const re = new RegExp(
+    `&lt;(\\/?)(${ALLOWED_TAGS.join("|")})((?:\\s[^&]*?)?)\\s*(\\/?)&gt;`,
+    "gi"
+  );
+  return escaped.replace(re, (_m, slash, tag, attrs: string, selfClose: string) => {
+    const decodedAttrs = (attrs || "")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, "&");
+    return `<${slash}${tag.toLowerCase()}${decodedAttrs}${selfClose}>`;
+  });
+}
+
 function renderMath(input: string): string {
   if (!input) return "";
   const s = input;
@@ -150,12 +167,14 @@ function renderMath(input: string): string {
   }
   return parts
     .map((p) => {
-      if (p.type === "text") return escapeHtml(p.value);
+      if (p.type === "text") return sanitizeInlineHtml(p.value);
       try {
         return katex.renderToString(p.value, {
           throwOnError: false,
           displayMode: !!p.display,
-          output: "html",
+          output: "htmlAndMathml",
+          strict: "ignore",
+          trust: true,
         });
       } catch {
         return escapeHtml(p.value);
