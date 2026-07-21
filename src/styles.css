@@ -142,3 +142,127 @@
     color: var(--color-foreground);
   }
 }
+
+/* ============ Test Paper Styles ============ */
+
+.print-only { display: none; }
+
+.preview-frame {
+  background: #ffffff;
+  padding: 12mm;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.paper {
+  font-family: "Times New Roman", Times, serif;
+  color: #000;
+  background: #fff;
+  font-size: 10pt;
+  line-height: 1.35;
+}
+
+.paper-header {
+  display: flex;
+  align-items: stretch;
+  gap: 8mm;
+  margin-bottom: 4mm;
+}
+.paper-header-left { flex: 1; }
+.academy-name {
+  font-size: 20pt;
+  font-weight: 700;
+  color: #0b3a7a;
+}
+.academy-rule {
+  border-bottom: 2px solid #0b3a7a;
+  margin: 2px 0 4px;
+  width: 60%;
+}
+.academy-category {
+  font-size: 12pt;
+  font-weight: 600;
+  color: #0b3a7a;
+}
+.paper-header-info {
+  border-collapse: collapse;
+  font-size: 10pt;
+  font-weight: 700;
+}
+.paper-header-info td {
+  border: 1px solid #000;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.subjects-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 4mm;
+  font-size: 10pt;
+}
+.subjects-table td {
+  border: 1px solid #000;
+  padding: 3px 8px;
+}
+.subject-name { font-weight: 700; width: 25%; }
+.subject-type { width: 75%; }
+
+.subject-section { margin-top: 3mm; }
+.subject-heading {
+  text-align: center;
+  font-size: 14pt;
+  font-weight: 700;
+  margin: 4mm 0 3mm;
+}
+
+.two-col {
+  column-count: 2;
+  column-gap: 8mm;
+}
+
+.question {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: 3mm;
+}
+
+.qrow { display: flex; gap: 4px; }
+.qnum { font-weight: 700; min-width: 18px; }
+.qtext { flex: 1; text-align: justify; }
+
+.qimage { margin: 2mm 0 2mm 22px; }
+.qimage img { max-width: 100%; }
+
+.options {
+  list-style: none;
+  padding: 0;
+  margin: 1mm 0 0 22px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1mm 6mm;
+}
+.option { display: flex; gap: 3px; align-items: baseline; }
+.opt-num { font-weight: 600; }
+.opt-text { flex: 1; }
+.opt-img { display: block; max-width: 100%; }
+
+.empty-state {
+  padding: 30mm 10mm;
+  text-align: center;
+  color: #888;
+  font-family: system-ui, sans-serif;
+}
+
+.katex { font-size: 1em; }
+.katex-display { margin: 2px 0; }
+
+@media print {
+  @page { size: A4; margin: 12mm 10mm; }
+  html, body { background: #fff !important; }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  .paper { font-size: 9.5pt; }
+}
