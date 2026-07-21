@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import katex from "katex";
+import { z } from "zod";
 import "katex/dist/katex.min.css";
 
 export const Route = createFileRoute("/")({
@@ -10,13 +11,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Upload a questions JSON file and generate a print-ready two-column NEET-style test paper PDF with LaTeX math rendering.",
+          "Upload a questions JSON file and generate a customizable two-column NEET-style test paper PDF with LaTeX math rendering.",
       },
       { property: "og:title", content: "NEET Test Paper PDF Generator" },
       {
         property: "og:description",
         content:
-          "Turn a questions JSON file into a formatted two-column test paper PDF.",
+          "Turn a questions JSON file into a formatted, template-driven test paper PDF.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -25,14 +26,32 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type QItem = {
-  qno: number;
-  question: { text: string; image?: string };
-  options: Record<string, { text: string; image?: string }>;
-  subject?: string;
-  chapter?: string;
-};
+// ---------- Zod schema ----------
+const richField = z.object({
+  text: z.string(),
+  image: z.string().optional().default(""),
+});
 
+const questionSchema = z.object({
+  qno: z.union([z.number(), z.string()]).transform((v) => Number(v)),
+  year: z.union([z.number(), z.string(), z.null()]).optional(),
+  question: richField,
+  options: z.record(z.string(), richField).refine((o) => Object.keys(o).length >= 2, {
+    message: "Each question needs at least 2 options",
+  }),
+  answer: z.string().optional(),
+  explanation: richField.optional(),
+  subject: z.string().optional(),
+  chapter: z.string().optional(),
+  topic: z.string().optional(),
+  difficulty: z.string().optional(),
+});
+
+const paperSchema = z.array(questionSchema).min(1, "JSON must contain at least one question");
+
+type QItem = z.infer<typeof questionSchema>;
+
+// ---------- Meta ----------
 type Meta = {
   academy: string;
   category: string;
@@ -40,7 +59,7 @@ type Meta = {
   testDate: string;
   duration: string;
   marks: string;
-  subjectsList: string; // one "Subject:Type" per line
+  subjectsList: string;
 };
 
 const DEFAULT_META: Meta = {
@@ -53,55 +72,85 @@ const DEFAULT_META: Meta = {
   subjectsList: "Physics:FST\nChemistry:FST\nBiology:FST",
 };
 
-// Render inline LaTeX embedded between \( \) or \[ \] (and $...$).
+// ---------- Templates ----------
+// Uses {{tokens}} that are replaced at render time.
+const DEFAULT_HEADER_TEMPLATE = `<header class="paper-header">
+  <div class="paper-header-left">
+    <div class="academy-name">{{academy}}</div>
+    <div class="academy-rule"></div>
+    <div class="academy-category">{{category}}</div>
+  </div>
+  <table class="paper-header-info"><tbody>
+    <tr><td>{{testTitle}}</td></tr>
+    <tr><td>Test Date: {{testDate}}</td></tr>
+    <tr><td>Time Duration : {{duration}}</td></tr>
+    <tr><td>Test Marks :{{marks}}</td></tr>
+  </tbody></table>
+</header>
+{{subjectsTable}}`;
+
+const DEFAULT_QUESTION_TEMPLATE = `<div class="question">
+  <div class="qrow">
+    <span class="qnum">{{qno}}.</span>
+    <span class="qtext">{{question}}</span>
+  </div>
+  {{questionImage}}
+  <ol class="options">{{options}}</ol>
+</div>`;
+
+const DEFAULT_OPTION_TEMPLATE = `<li class="option">
+  <span class="opt-num">({{index}})</span>
+  <span class="opt-text">{{text}}</span>
+  {{image}}
+</li>`;
+
+const DEFAULT_CUSTOM_CSS = `/* Add or override styles. These apply to preview + print. */
+/* Example:
+.subject-heading { color: #0b3a7a; text-decoration: underline; }
+.paper { font-family: Georgia, serif; }
+*/`;
+
+// ---------- Math renderer ----------
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function renderMath(input: string): string {
   if (!input) return "";
-  // Normalize: handle \( \) \[ \] and $...$
+  const s = input;
   const parts: { type: "text" | "math"; value: string; display?: boolean }[] = [];
   let i = 0;
-  const s = input;
   while (i < s.length) {
     const pIdx = s.indexOf("\\(", i);
     const dIdx = s.indexOf("\\[", i);
     const $Idx = s.indexOf("$", i);
-    const candidates = [pIdx, dIdx, $Idx].filter((x) => x >= 0);
-    if (candidates.length === 0) {
+    const cand = [pIdx, dIdx, $Idx].filter((x) => x >= 0);
+    if (cand.length === 0) {
       parts.push({ type: "text", value: s.slice(i) });
       break;
     }
-    const next = Math.min(...candidates);
+    const next = Math.min(...cand);
     if (next > i) parts.push({ type: "text", value: s.slice(i, next) });
     if (next === pIdx) {
       const end = s.indexOf("\\)", next + 2);
-      if (end < 0) {
-        parts.push({ type: "text", value: s.slice(next) });
-        break;
-      }
+      if (end < 0) { parts.push({ type: "text", value: s.slice(next) }); break; }
       parts.push({ type: "math", value: s.slice(next + 2, end), display: false });
       i = end + 2;
     } else if (next === dIdx) {
       const end = s.indexOf("\\]", next + 2);
-      if (end < 0) {
-        parts.push({ type: "text", value: s.slice(next) });
-        break;
-      }
+      if (end < 0) { parts.push({ type: "text", value: s.slice(next) }); break; }
       parts.push({ type: "math", value: s.slice(next + 2, end), display: true });
       i = end + 2;
     } else {
       const end = s.indexOf("$", next + 1);
-      if (end < 0) {
-        parts.push({ type: "text", value: s.slice(next) });
-        break;
-      }
+      if (end < 0) { parts.push({ type: "text", value: s.slice(next) }); break; }
       parts.push({ type: "math", value: s.slice(next + 1, end), display: false });
       i = end + 1;
     }
   }
   return parts
     .map((p) => {
-      if (p.type === "text") {
-        return escapeHtml(p.value);
-      }
+      if (p.type === "text") return escapeHtml(p.value);
       try {
         return katex.renderToString(p.value, {
           throwOnError: false,
@@ -115,259 +164,364 @@ function renderMath(input: string): string {
     .join("");
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+// ---------- Template engine (safe {{token}} replace, no eval) ----------
+function fillTemplate(tpl: string, tokens: Record<string, string>): string {
+  return tpl.replace(/\{\{\s*([\w-]+)\s*\}\}/g, (_m, key) =>
+    Object.prototype.hasOwnProperty.call(tokens, key) ? tokens[key] : ""
+  );
 }
 
-function groupBySubject(items: QItem[]): { subject: string; items: QItem[] }[] {
+// ---------- Grouping ----------
+function groupBySubject(items: QItem[]) {
   const order: string[] = [];
   const map = new Map<string, QItem[]>();
   for (const it of items) {
     const sub = it.subject || "Questions";
-    if (!map.has(sub)) {
-      map.set(sub, []);
-      order.push(sub);
-    }
+    if (!map.has(sub)) { map.set(sub, []); order.push(sub); }
     map.get(sub)!.push(it);
   }
   return order.map((s) => ({ subject: s, items: map.get(s)! }));
 }
 
+// ---------- Component ----------
 function Index() {
   const [meta, setMeta] = useState<Meta>(DEFAULT_META);
-  const [items, setItems] = useState<QItem[] | null>(null);
+  const [rawJson, setRawJson] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
-  const [error, setError] = useState<string>("");
+  const [items, setItems] = useState<QItem[] | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [tab, setTab] = useState<"data" | "header" | "templates">("data");
+
+  const [headerTpl, setHeaderTpl] = useState(DEFAULT_HEADER_TEMPLATE);
+  const [questionTpl, setQuestionTpl] = useState(DEFAULT_QUESTION_TEMPLATE);
+  const [optionTpl, setOptionTpl] = useState(DEFAULT_OPTION_TEMPLATE);
+  const [customCss, setCustomCss] = useState(DEFAULT_CUSTOM_CSS);
+
+  const validate = (text: string) => {
+    setErrors([]);
+    if (!text.trim()) { setItems(null); return; }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch (e) {
+      setErrors([`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`]);
+      setItems(null);
+      return;
+    }
+    const result = paperSchema.safeParse(parsed);
+    if (!result.success) {
+      const msgs = result.error.issues.slice(0, 30).map((iss) => {
+        const path = iss.path.length ? iss.path.join(".") : "(root)";
+        return `• ${path}: ${iss.message}`;
+      });
+      if (result.error.issues.length > 30) {
+        msgs.push(`…and ${result.error.issues.length - 30} more issues`);
+      }
+      setErrors(msgs);
+      setItems(null);
+      return;
+    }
+    setItems(result.data);
+  };
+
+  useEffect(() => { validate(rawJson); /* eslint-disable-next-line */ }, [rawJson]);
+
+  const onFile = async (f: File) => {
+    const text = await f.text();
+    setFileName(f.name);
+    setRawJson(text);
+  };
+
+  const subjectRows = useMemo(
+    () =>
+      meta.subjectsList
+        .split("\n").map((l) => l.trim()).filter(Boolean)
+        .map((l) => {
+          const [name, type] = l.split(":").map((x) => x?.trim() ?? "");
+          return { name, type: type || "" };
+        }),
+    [meta.subjectsList]
+  );
 
   const grouped = useMemo(() => (items ? groupBySubject(items) : []), [items]);
 
-  const onFile = async (f: File) => {
-    setError("");
-    try {
-      const text = await f.text();
-      const parsed = JSON.parse(text);
-      if (!Array.isArray(parsed)) throw new Error("JSON must be an array of questions.");
-      setItems(parsed as QItem[]);
-      setFileName(f.name);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to read file");
-      setItems(null);
-    }
-  };
-
-  const subjectRows = meta.subjectsList
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((l) => {
-      const [name, type] = l.split(":").map((x) => x?.trim() ?? "");
-      return { name, type: type || "" };
+  // Build header HTML from template
+  const headerHtml = useMemo(() => {
+    const subjectsTable = subjectRows.length
+      ? `<table class="subjects-table"><tbody>${subjectRows
+          .map(
+            (r) =>
+              `<tr><td class="subject-name">${escapeHtml(r.name)}</td><td class="subject-type">${escapeHtml(r.type)}</td></tr>`
+          )
+          .join("")}</tbody></table>`
+      : "";
+    return fillTemplate(headerTpl, {
+      academy: escapeHtml(meta.academy),
+      category: escapeHtml(meta.category),
+      testTitle: escapeHtml(meta.testTitle),
+      testDate: escapeHtml(meta.testDate),
+      duration: escapeHtml(meta.duration),
+      marks: escapeHtml(meta.marks),
+      subjectsTable,
     });
+  }, [headerTpl, meta, subjectRows]);
+
+  const buildQuestionsHtml = () =>
+    grouped
+      .map(
+        (g) =>
+          `<section class="subject-section"><h2 class="subject-heading">${escapeHtml(
+            g.subject
+          )}</h2><div class="two-col">${g.items
+            .map((q) => {
+              const keys = Object.keys(q.options);
+              const optsHtml = keys
+                .map((k, idx) =>
+                  fillTemplate(optionTpl, {
+                    index: String(idx + 1),
+                    key: escapeHtml(k),
+                    text: renderMath(q.options[k].text),
+                    image: q.options[k].image
+                      ? `<img class="opt-img" src="${escapeHtml(q.options[k].image!)}" alt="" />`
+                      : "",
+                  })
+                )
+                .join("");
+              return fillTemplate(questionTpl, {
+                qno: String(q.qno),
+                question: renderMath(q.question.text),
+                questionImage: q.question.image
+                  ? `<div class="qimage"><img src="${escapeHtml(q.question.image)}" alt="" /></div>`
+                  : "",
+                options: optsHtml,
+                subject: escapeHtml(q.subject ?? ""),
+                chapter: escapeHtml(q.chapter ?? ""),
+              });
+            })
+            .join("")}</div></section>`
+      )
+      .join("");
+
+  const questionsHtml = useMemo(buildQuestionsHtml, [grouped, questionTpl, optionTpl]);
+
+  const paperHtml = `<div class="paper">${headerHtml}${
+    grouped.length === 0
+      ? `<div class="empty-state">${items ? "" : "Upload a JSON file to preview the paper."}</div>`
+      : questionsHtml
+  }</div>`;
+
+  const canPrint = !!items && errors.length === 0;
+
+  const resetTemplate = (which: "header" | "question" | "option" | "css") => {
+    if (which === "header") setHeaderTpl(DEFAULT_HEADER_TEMPLATE);
+    if (which === "question") setQuestionTpl(DEFAULT_QUESTION_TEMPLATE);
+    if (which === "option") setOptionTpl(DEFAULT_OPTION_TEMPLATE);
+    if (which === "css") setCustomCss(DEFAULT_CUSTOM_CSS);
+  };
 
   return (
     <div className="min-h-screen bg-muted/40">
+      {/* Injected custom CSS (preview + print) */}
+      <style dangerouslySetInnerHTML={{ __html: customCss }} />
+
       <div className="no-print border-b bg-background">
         <div className="mx-auto max-w-6xl px-6 py-5 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold">NEET Test Paper PDF Generator</h1>
             <p className="text-sm text-muted-foreground">
-              Upload a questions JSON, edit the header, then Print → Save as PDF.
+              Upload JSON, customize the template, then Print → Save as PDF.
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => window.print()}
-              disabled={!items}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              Download PDF
-            </button>
-          </div>
+          <button
+            onClick={() => window.print()}
+            disabled={!canPrint}
+            title={!canPrint ? "Fix JSON errors first" : "Open print dialog"}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            Download PDF
+          </button>
         </div>
       </div>
 
-      <div className="no-print mx-auto max-w-6xl px-6 py-6 grid gap-6 md:grid-cols-[320px_1fr]">
+      <div className="no-print mx-auto max-w-6xl px-6 py-6 grid gap-6 md:grid-cols-[360px_1fr]">
         <aside className="space-y-4">
-          <div className="rounded-lg border bg-background p-4 space-y-3">
-            <h2 className="font-semibold text-sm">1. Upload questions JSON</h2>
-            <input
-              type="file"
-              accept="application/json,.json"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) onFile(f);
-              }}
-              className="block w-full text-sm"
-            />
-            {fileName && (
-              <p className="text-xs text-muted-foreground">
-                Loaded: <span className="font-medium">{fileName}</span>
-                {items && ` — ${items.length} questions`}
-              </p>
-            )}
-            {error && <p className="text-xs text-destructive">{error}</p>}
+          <div className="flex gap-1 rounded-lg bg-background p-1 border">
+            {(["data", "header", "templates"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`flex-1 rounded-md px-3 py-1.5 text-sm capitalize ${
+                  tab === t ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
           </div>
 
-          <div className="rounded-lg border bg-background p-4 space-y-3">
-            <h2 className="font-semibold text-sm">2. Header details</h2>
-            {(
-              [
-                ["academy", "Academy name"],
-                ["category", "Category line"],
-                ["testTitle", "Test title"],
-                ["testDate", "Test date"],
-                ["duration", "Duration"],
-                ["marks", "Total marks"],
-              ] as [keyof Meta, string][]
-            ).map(([k, label]) => (
-              <label key={k} className="block text-xs">
-                <span className="text-muted-foreground">{label}</span>
-                <input
-                  value={meta[k]}
-                  onChange={(e) => setMeta({ ...meta, [k]: e.target.value })}
-                  className="mt-1 w-full rounded border px-2 py-1 text-sm"
+          {tab === "data" && (
+            <div className="rounded-lg border bg-background p-4 space-y-3">
+              <h2 className="font-semibold text-sm">Questions JSON</h2>
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onFile(f);
+                }}
+                className="block w-full text-sm"
+              />
+              {fileName && (
+                <p className="text-xs text-muted-foreground">
+                  Loaded: <span className="font-medium">{fileName}</span>
+                  {items && ` — ${items.length} questions`}
+                </p>
+              )}
+              <textarea
+                value={rawJson}
+                onChange={(e) => setRawJson(e.target.value)}
+                placeholder="…or paste JSON here"
+                rows={10}
+                className="w-full rounded border px-2 py-1 text-xs font-mono"
+              />
+              {errors.length > 0 && (
+                <div className="rounded border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive space-y-1 max-h-60 overflow-auto">
+                  <div className="font-semibold">
+                    Validation failed ({errors.length}):
+                  </div>
+                  {errors.map((e, i) => (
+                    <div key={i} className="font-mono whitespace-pre-wrap">{e}</div>
+                  ))}
+                </div>
+              )}
+              {items && errors.length === 0 && (
+                <div className="rounded border border-green-500/40 bg-green-500/5 p-2 text-xs text-green-700">
+                  ✓ Valid — {items.length} questions parsed
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === "header" && (
+            <div className="rounded-lg border bg-background p-4 space-y-3">
+              <h2 className="font-semibold text-sm">Header details</h2>
+              {(
+                [
+                  ["academy", "Academy name"],
+                  ["category", "Category line"],
+                  ["testTitle", "Test title"],
+                  ["testDate", "Test date"],
+                  ["duration", "Duration"],
+                  ["marks", "Total marks"],
+                ] as [keyof Meta, string][]
+              ).map(([k, label]) => (
+                <label key={k} className="block text-xs">
+                  <span className="text-muted-foreground">{label}</span>
+                  <input
+                    value={meta[k]}
+                    onChange={(e) => setMeta({ ...meta, [k]: e.target.value })}
+                    className="mt-1 w-full rounded border px-2 py-1 text-sm"
+                  />
+                </label>
+              ))}
+              <label className="block text-xs">
+                <span className="text-muted-foreground">
+                  Subjects (one per line: Name:Type)
+                </span>
+                <textarea
+                  value={meta.subjectsList}
+                  onChange={(e) => setMeta({ ...meta, subjectsList: e.target.value })}
+                  rows={4}
+                  className="mt-1 w-full rounded border px-2 py-1 text-sm font-mono"
                 />
               </label>
-            ))}
-            <label className="block text-xs">
-              <span className="text-muted-foreground">
-                Subjects (one per line: Name:Type)
-              </span>
-              <textarea
-                value={meta.subjectsList}
-                onChange={(e) => setMeta({ ...meta, subjectsList: e.target.value })}
-                rows={4}
-                className="mt-1 w-full rounded border px-2 py-1 text-sm font-mono"
+            </div>
+          )}
+
+          {tab === "templates" && (
+            <div className="space-y-4">
+              <TemplateBox
+                title="Header template"
+                hint="Tokens: {{academy}} {{category}} {{testTitle}} {{testDate}} {{duration}} {{marks}} {{subjectsTable}}"
+                value={headerTpl}
+                onChange={setHeaderTpl}
+                onReset={() => resetTemplate("header")}
               />
-            </label>
-          </div>
+              <TemplateBox
+                title="Question template"
+                hint="Tokens: {{qno}} {{question}} {{questionImage}} {{options}} {{subject}} {{chapter}}"
+                value={questionTpl}
+                onChange={setQuestionTpl}
+                onReset={() => resetTemplate("question")}
+              />
+              <TemplateBox
+                title="Option template"
+                hint="Tokens: {{index}} {{key}} {{text}} {{image}}"
+                value={optionTpl}
+                onChange={setOptionTpl}
+                onReset={() => resetTemplate("option")}
+              />
+              <TemplateBox
+                title="Custom CSS"
+                hint="Overrides styles for preview and PDF."
+                value={customCss}
+                onChange={setCustomCss}
+                onReset={() => resetTemplate("css")}
+                mono
+              />
+            </div>
+          )}
 
           <p className="text-xs text-muted-foreground">
-            Tip: in the print dialog choose <b>Save as PDF</b>, margins{" "}
-            <b>Default</b>, and enable <b>Background graphics</b>.
+            In the print dialog: <b>Save as PDF</b>, margins <b>Default</b>,
+            enable <b>Background graphics</b>.
           </p>
         </aside>
 
         <section className="rounded-lg border bg-background p-4">
-          <h2 className="mb-3 font-semibold text-sm text-muted-foreground">
-            Preview
-          </h2>
+          <h2 className="mb-3 font-semibold text-sm text-muted-foreground">Preview</h2>
           <div className="preview-frame">
-            <PaperDocument meta={meta} subjectRows={subjectRows} grouped={grouped} />
+            <div dangerouslySetInnerHTML={{ __html: paperHtml }} />
           </div>
         </section>
       </div>
 
-      {/* Print-only: full document */}
       <div className="print-only">
-        <PaperDocument meta={meta} subjectRows={subjectRows} grouped={grouped} />
+        <div dangerouslySetInnerHTML={{ __html: paperHtml }} />
       </div>
     </div>
   );
 }
 
-function PaperDocument({
-  meta,
-  subjectRows,
-  grouped,
+function TemplateBox({
+  title, hint, value, onChange, onReset, mono,
 }: {
-  meta: Meta;
-  subjectRows: { name: string; type: string }[];
-  grouped: { subject: string; items: QItem[] }[];
+  title: string;
+  hint: string;
+  value: string;
+  onChange: (v: string) => void;
+  onReset: () => void;
+  mono?: boolean;
 }) {
   return (
-    <div className="paper">
-      <header className="paper-header">
-        <div className="paper-header-left">
-          <div className="academy-name">{meta.academy}</div>
-          <div className="academy-rule" />
-          <div className="academy-category">{meta.category}</div>
-        </div>
-        <table className="paper-header-info">
-          <tbody>
-            <tr>
-              <td>{meta.testTitle}</td>
-            </tr>
-            <tr>
-              <td>Test Date: {meta.testDate}</td>
-            </tr>
-            <tr>
-              <td>Time Duration : {meta.duration}</td>
-            </tr>
-            <tr>
-              <td>Test Marks :{meta.marks}</td>
-            </tr>
-          </tbody>
-        </table>
-      </header>
-
-      {subjectRows.length > 0 && (
-        <table className="subjects-table">
-          <tbody>
-            {subjectRows.map((r, i) => (
-              <tr key={i}>
-                <td className="subject-name">{r.name}</td>
-                <td className="subject-type">{r.type}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {grouped.length === 0 && (
-        <div className="empty-state">
-          Upload a JSON file to preview the paper here.
-        </div>
-      )}
-
-      {grouped.map((g) => (
-        <section key={g.subject} className="subject-section">
-          <h2 className="subject-heading">{g.subject}</h2>
-          <div className="two-col">
-            {g.items.map((q) => (
-              <QuestionBlock key={q.qno} q={q} />
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
-
-function QuestionBlock({ q }: { q: QItem }) {
-  const optionKeys = Object.keys(q.options || {});
-  return (
-    <div className="question">
-      <div className="qrow">
-        <span className="qnum">{q.qno}.</span>
-        <span
-          className="qtext"
-          dangerouslySetInnerHTML={{ __html: renderMath(q.question.text) }}
-        />
+    <div className="rounded-lg border bg-background p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-sm">{title}</h3>
+        <button
+          onClick={onReset}
+          className="text-xs text-muted-foreground hover:text-foreground underline"
+        >
+          Reset
+        </button>
       </div>
-      {q.question.image && (
-        <div className="qimage">
-          <img src={q.question.image} alt="" />
-        </div>
-      )}
-      <ol className="options">
-        {optionKeys.map((k, idx) => {
-          const opt = q.options[k];
-          return (
-            <li key={k} className="option">
-              <span className="opt-num">({idx + 1})</span>
-              <span
-                className="opt-text"
-                dangerouslySetInnerHTML={{ __html: renderMath(opt.text) }}
-              />
-              {opt.image && <img className="opt-img" src={opt.image} alt="" />}
-            </li>
-          );
-        })}
-      </ol>
+      <p className="text-[11px] text-muted-foreground leading-snug">{hint}</p>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={10}
+        className={`w-full rounded border px-2 py-1 text-xs ${mono !== false ? "font-mono" : ""}`}
+        spellCheck={false}
+      />
     </div>
   );
 }
