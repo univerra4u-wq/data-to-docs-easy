@@ -1,24 +1,32 @@
 ## Goal
-Save the complete logic behind the JSON → two-column A4 paper generator as a permanent markdown file in the project, so it's documented and reusable (e.g. as a prompt for another Claude session).
 
-## What to create
-**File:** `docs/paper-generation-logic.md` (new)
+Turn the full 339-line `docs/paper-generation-logic.md` into a clean, readable PDF you can download and share.
 
-A single self-contained document covering the full pipeline, grounded in the actual code in `src/routes/index.tsx` and `src/styles.css`:
+## What gets produced
 
-1. **Overview** — the core philosophy (render HTML precisely, let the browser's print engine make the PDF; no PDF library).
-2. **The 7-stage pipeline** — Validate (Zod) → Group by subject (order-preserving) → Template fill (`{{token}}` replace) → Math + safe HTML (`renderMath`/`sanitizeInlineHtml`) → One flat flow of `.question` siblings → CSS multi-column + fragmentation layout → `window.print()`.
-3. **The alignment mechanics** — why CSS `column-count: 2` + `break-inside: avoid` produces clean two-column flow without JavaScript height math; the three internal passes (measure → fragment → balance); why `column-fill: auto` (paged default) fills col 1 fully before col 2; why small gaps at column bottoms are correct vs. splitting questions.
-4. **The CSS rule table** — each rule in `styles.css`, the exact line, and what it does (`column-count`, `break-inside`, options grid, image/KaTeX overflow, `@page A4`, `@media print`).
-5. **KaTeX configuration** — `output: "htmlAndMathml"`, `trust: true`, `strict: "ignore"`, `throwOnError: false`, and why each matters; how `sanitizeInlineHtml` allows a safe inline-HTML whitelist while escaping everything else.
-6. **The 7 integration rules in order** — the checklist to reproduce this in any React stack.
-7. **Known caveats** — browser variance (Chrome best), the remaining ~5% edge cases, and the Puppeteer option for deterministic server-side PDF.
+A single file at `/mnt/documents/paper-generation-logic.pdf` — the complete document, nothing trimmed:
 
-## Out of scope
-- No code changes to `index.tsx` or `styles.css`.
-- No new dependencies.
-- This is a documentation-only addition.
+- Title page-style heading, then all 12+ sections in order
+- Proper heading hierarchy (H1/H2/H3) with consistent spacing
+- Code blocks (the `ts` / `css` snippets) in a monospaced, light-shaded box that never overflows the page width — long lines wrap instead of clipping
+- The CSS rule table rendered as a real bordered table
+- Bullet and numbered lists preserved
+- Inline `code` spans in monospace
+- Page numbers in the footer, A4 page size, 20mm margins
+- A Unicode-capable font registered so arrows/em-dashes/`→` in the doc render instead of showing as boxes
 
-## Verification
-- Confirm the file is written and readable.
-- Confirm it accurately references the real functions/line numbers in the current source.
+## How
+
+1. Read the markdown source in full.
+2. Build a one-off Python script under `/tmp` that parses the markdown (headings, paragraphs, fenced code, tables, lists) and lays it out with ReportLab Platypus.
+3. Register DejaVu Sans + DejaVu Sans Mono via fontconfig so non-ASCII characters are safe.
+4. Write the PDF to `/mnt/documents/`.
+
+## Quality check before delivery
+
+Convert every page to an image with `pdftoppm` and inspect each one, looking for: clipped code lines, overflowing table columns, orphaned headings at page bottoms, black-box glyphs, and blank pages. Fix the script and re-run until a full pass is clean, then report what was found and fixed.
+
+## Notes
+
+- No app code changes — this is a document export only. The website and generator behavior stay exactly as they are.
+- If you'd also like a "Download this doc as PDF" button inside the app itself, say so and I'll add that as a follow-up.
