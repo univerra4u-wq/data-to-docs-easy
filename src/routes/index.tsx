@@ -139,10 +139,13 @@ const ALLOWED_TAGS = [
 
 function sanitizeInlineHtml(raw: string): string {
   const escaped = escapeHtml(raw);
+  // Attributes may contain escaped entities (&quot; etc.), so match anything
+  // that is not the closing &gt; sequence.
   const re = new RegExp(
-    `&lt;(\\/?)(${ALLOWED_TAGS.join("|")})((?:\\s[^&]*?)?)\\s*(\\/?)&gt;`,
+    `&lt;(\\/?)(${ALLOWED_TAGS.join("|")})((?:\\s(?:(?!&gt;)[\\s\\S])*?)?)\\s*(\\/?)&gt;`,
     "gi"
   );
+
   return escaped.replace(re, (_m, slash, tag, _attrs: string, selfClose: string) => {
     return `<${slash}${tag.toLowerCase()}${selfClose}>`;
   });
