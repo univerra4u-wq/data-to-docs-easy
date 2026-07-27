@@ -256,15 +256,20 @@
 .qtext table,
 .opt-text table,
 .question table {
-  display: table;
+  /* inline-table lets two adjacent truth-tables sit side by side
+     instead of stacking vertically */
+  display: inline-table;
   width: auto;
   max-width: 100%;
   border-collapse: collapse;
-  margin: 1.5mm 0;
+  margin: 1.5mm 4mm 1.5mm 0;
+  vertical-align: top;
   font-size: 0.95em;
+  text-align: center;
   break-inside: avoid;
   page-break-inside: avoid;
 }
+
 .qtext table thead, .opt-text table thead, .question table thead { display: table-header-group; }
 .qtext table tbody, .opt-text table tbody, .question table tbody { display: table-row-group; }
 .qtext table tr, .opt-text table tr, .question table tr { display: table-row; }
