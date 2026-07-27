@@ -112,10 +112,25 @@ const DEFAULT_CUSTOM_CSS = `/* Add or override styles. These apply to preview + 
 
 // ---------- Math renderer ----------
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Only allow http(s), relative and data:image URLs for <img src>.
+function safeImageUrl(raw: string): string {
+  const url = (raw || "").trim();
+  if (/^(https?:\/\/|\/|\.\/|\.\.\/)/i.test(url)) return escapeHtml(url);
+  if (/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=\s]+$/i.test(url))
+    return escapeHtml(url);
+  return "";
 }
 
 // Escape, then re-allow a small set of inline HTML tags commonly used in question text.
+// All attributes are stripped so no event handlers / styles can be injected.
 const ALLOWED_TAGS = ["span", "sub", "sup", "b", "i", "em", "strong", "br", "u", "small"];
 function sanitizeInlineHtml(raw: string): string {
   const escaped = escapeHtml(raw);
@@ -123,14 +138,11 @@ function sanitizeInlineHtml(raw: string): string {
     `&lt;(\\/?)(${ALLOWED_TAGS.join("|")})((?:\\s[^&]*?)?)\\s*(\\/?)&gt;`,
     "gi"
   );
-  return escaped.replace(re, (_m, slash, tag, attrs: string, selfClose: string) => {
-    const decodedAttrs = (attrs || "")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&amp;/g, "&");
-    return `<${slash}${tag.toLowerCase()}${decodedAttrs}${selfClose}>`;
+  return escaped.replace(re, (_m, slash, tag, _attrs: string, selfClose: string) => {
+    return `<${slash}${tag.toLowerCase()}${selfClose}>`;
   });
 }
+
 
 function renderMath(input: string): string {
   if (!input) return "";
@@ -174,7 +186,7 @@ function renderMath(input: string): string {
           displayMode: !!p.display,
           output: "htmlAndMathml",
           strict: "ignore",
-          trust: true,
+          trust: false,
         });
       } catch {
         return escapeHtml(p.value);
@@ -300,8 +312,8 @@ function Index() {
                     index: String(idx + 1),
                     key: escapeHtml(k),
                     text: renderMath(q.options[k].text),
-                    image: q.options[k].image
-                      ? `<img class="opt-img" src="${escapeHtml(q.options[k].image!)}" alt="" />`
+                    image: safeImageUrl(q.options[k].image ?? "")
+                      ? `<img class="opt-img" src="${safeImageUrl(q.options[k].image!)}" alt="" />`
                       : "",
                   })
                 )
@@ -309,9 +321,10 @@ function Index() {
               return fillTemplate(questionTpl, {
                 qno: String(q.qno),
                 question: renderMath(q.question.text),
-                questionImage: q.question.image
-                  ? `<div class="qimage"><img src="${escapeHtml(q.question.image)}" alt="" /></div>`
+                questionImage: safeImageUrl(q.question.image ?? "")
+                  ? `<div class="qimage"><img src="${safeImageUrl(q.question.image)}" alt="" /></div>`
                   : "",
+
                 options: optsHtml,
                 subject: escapeHtml(q.subject ?? ""),
                 chapter: escapeHtml(q.chapter ?? ""),
