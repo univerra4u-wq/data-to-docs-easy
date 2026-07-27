@@ -120,6 +120,40 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function decodeHtmlEntities(input: string): string {
+  const named: Record<string, string> = {
+    amp: "&",
+    lt: "<",
+    gt: ">",
+    quot: '"',
+    apos: "'",
+    nbsp: " ",
+  };
+
+  return input.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, entity: string) => {
+    const key = entity.toLowerCase();
+    if (key.startsWith("#x")) {
+      const codePoint = Number.parseInt(key.slice(2), 16);
+      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+    }
+    if (key.startsWith("#")) {
+      const codePoint = Number.parseInt(key.slice(1), 10);
+      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+    }
+    return named[key] ?? match;
+  });
+}
+
+function normalizePossiblyEscapedHtml(input: string): string {
+  let current = input;
+  for (let i = 0; i < 3; i += 1) {
+    const next = decodeHtmlEntities(current);
+    if (next === current) return current;
+    current = next;
+  }
+  return current;
+}
+
 // Only allow http(s), relative and data:image URLs for <img src>.
 function safeImageUrl(raw: string): string {
   const url = (raw || "").trim();
@@ -138,7 +172,7 @@ const ALLOWED_TAGS = [
 ];
 
 function sanitizeInlineHtml(raw: string): string {
-  const escaped = escapeHtml(raw);
+  const escaped = escapeHtml(normalizePossiblyEscapedHtml(raw));
   // Attributes may contain escaped entities (&quot; etc.), so match anything
   // that is not the closing &gt; sequence.
   const re = new RegExp(
