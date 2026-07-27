@@ -312,8 +312,8 @@ function Index() {
                     index: String(idx + 1),
                     key: escapeHtml(k),
                     text: renderMath(q.options[k].text),
-                    image: q.options[k].image
-                      ? `<img class="opt-img" src="${escapeHtml(q.options[k].image!)}" alt="" />`
+                    image: safeImageUrl(q.options[k].image ?? "")
+                      ? `<img class="opt-img" src="${safeImageUrl(q.options[k].image!)}" alt="" />`
                       : "",
                   })
                 )
@@ -321,9 +321,10 @@ function Index() {
               return fillTemplate(questionTpl, {
                 qno: String(q.qno),
                 question: renderMath(q.question.text),
-                questionImage: q.question.image
-                  ? `<div class="qimage"><img src="${escapeHtml(q.question.image)}" alt="" /></div>`
+                questionImage: safeImageUrl(q.question.image ?? "")
+                  ? `<div class="qimage"><img src="${safeImageUrl(q.question.image)}" alt="" /></div>`
                   : "",
+
                 options: optsHtml,
                 subject: escapeHtml(q.subject ?? ""),
                 chapter: escapeHtml(q.chapter ?? ""),
