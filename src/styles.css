@@ -296,7 +296,7 @@
 .katex { font-size: 1em; }
 .katex-display { margin: 4px 0; overflow-x: auto; overflow-y: hidden; max-width: 100%; }
 .qtext .katex, .opt-text .katex { white-space: normal; }
-.qtext, .opt-text { overflow-wrap: anywhere; word-break: normal; }
+.qtext, .opt-text { overflow-wrap: break-word; word-break: normal; }
 .katex .base { white-space: normal; }
 /* Hide MathML from visual output — KaTeX ships it for a11y only */
 .katex .katex-mathml { position: absolute; clip: rect(1px,1px,1px,1px); padding: 0; border: 0; height: 1px; width: 1px; overflow: hidden; }
