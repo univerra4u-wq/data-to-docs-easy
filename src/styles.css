@@ -231,7 +231,7 @@
 
 .qrow { display: flex; gap: 4px; }
 .qnum { font-weight: 700; min-width: 18px; }
-.qtext { flex: 1; text-align: justify; }
+.qtext { flex: 1; min-width: 0; text-align: justify; }
 
 .qimage { margin: 2mm 0 2mm 22px; }
 .qimage img { max-width: 100%; }
@@ -241,13 +241,16 @@
   padding: 0;
   margin: 1mm 0 0 22px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0,1fr) stops wide content (tables, math) from squeezing a column
+     down to one character per line */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1mm 6mm;
 }
-.option { display: flex; gap: 3px; align-items: baseline; }
-.opt-num { font-weight: 600; }
-.opt-text { flex: 1; }
+.option { display: flex; gap: 3px; align-items: baseline; min-width: 0; }
+.opt-num { font-weight: 600; flex: none; }
+.opt-text { flex: 1; min-width: 0; }
 .opt-img { display: block; max-width: 100%; }
+
 
 /* Tables inside question / option content */
 .qtext table,
