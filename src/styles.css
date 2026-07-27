@@ -277,11 +277,12 @@
 .qtext table td, .opt-text table td, .question table td {
   display: table-cell;
   border: 1px solid #000;
-  padding: 1px 4px;
+  padding: 1px 5px;
   vertical-align: middle;
-  text-align: left;
-  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: nowrap;
 }
+
 .qtext table th, .opt-text table th, .question table th { font-weight: 700; }
 
 
