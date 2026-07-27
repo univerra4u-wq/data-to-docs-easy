@@ -248,8 +248,19 @@
 }
 .option { display: flex; gap: 3px; align-items: baseline; min-width: 0; }
 .opt-num { font-weight: 600; flex: none; }
-.opt-text { flex: 1; min-width: 0; }
+.opt-text { flex: 1; min-width: max-content; max-width: 100%; }
 .opt-img { display: block; max-width: 100%; }
+
+.opt-text span,
+.opt-text small,
+.opt-text strong,
+.opt-text b,
+.opt-text em,
+.opt-text i,
+.opt-text u {
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
 
 
 /* Tables inside question / option content */
