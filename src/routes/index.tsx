@@ -186,7 +186,7 @@ function renderMath(input: string): string {
           displayMode: !!p.display,
           output: "htmlAndMathml",
           strict: "ignore",
-          trust: true,
+          trust: false,
         });
       } catch {
         return escapeHtml(p.value);
