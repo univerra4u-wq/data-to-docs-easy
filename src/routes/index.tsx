@@ -129,9 +129,14 @@ function safeImageUrl(raw: string): string {
   return "";
 }
 
-// Escape, then re-allow a small set of inline HTML tags commonly used in question text.
+// Escape, then re-allow a small set of inline + table HTML tags used in question text.
 // All attributes are stripped so no event handlers / styles can be injected.
-const ALLOWED_TAGS = ["span", "sub", "sup", "b", "i", "em", "strong", "br", "u", "small"];
+const ALLOWED_TAGS = [
+  "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption", "colgroup", "col",
+  "ul", "ol", "li", "p", "div",
+  "span", "sub", "sup", "strong", "small", "br", "em", "b", "i", "u",
+];
+
 function sanitizeInlineHtml(raw: string): string {
   const escaped = escapeHtml(raw);
   const re = new RegExp(
