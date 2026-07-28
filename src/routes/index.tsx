@@ -193,7 +193,7 @@ function sanitizeInlineHtml(raw: string): string {
       );
       const rawSrc = decodeHtmlEntities(srcMatch?.[1] ?? srcMatch?.[2] ?? srcMatch?.[3] ?? "");
       const safe = safeImageUrl(rawSrc);
-      return safe ? `<img src="${escapeHtml(safe)}" alt="" />` : "";
+      return safe ? `<img src="${safe}" alt="" />` : "";
     }
   );
 }
