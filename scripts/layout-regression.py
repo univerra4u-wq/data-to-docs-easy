@@ -97,6 +97,120 @@ def build_paper() -> list:
     return rows
 
 
+def _table(caption: str, rows: int, cols: int) -> str:
+    head = "".join(f"<th>C{c + 1}</th>" for c in range(cols))
+    body = "".join(
+        "<tr>" + "".join(f"<td>{(r * cols + c) % 2 and 'T' or 'F'}</td>" for c in range(cols)) + "</tr>"
+        for r in range(rows)
+    )
+    return f"<table><caption>{caption}</caption><tr>{head}</tr>{body}</table>"
+
+
+def build_long_tables() -> list:
+    """EXTREME: very long / very wide tables in both the stem and the options.
+    Targets vertical text collapse, cell nowrap, caption attachment and
+    break-inside behaviour when a single block is taller than a column."""
+    rows = []
+    for i in range(1, 17):
+        tall_rows = 6 + (i % 4) * 8  # up to 30 data rows — taller than one column
+        cols = 3 + (i % 4)  # up to 6 columns — wider than one column
+        q = {
+            "text": (
+                f"Study the data set below and answer part {i}. "
+                + _table(f"Data Set ({i})", tall_rows, cols)
+            )
+        }
+        if i % 2:
+            o = {k: {"text": _table(f"Table ({k})", 4 + (i % 3) * 6, 2)} for k in "ABCD"}
+        else:
+            o = {k: {"text": f"Row {k} only, all others rejected"} for k in "ABCD"}
+        rows.append(
+            {"qno": i, "subject": "Physics", "question": q, "options": o, "answer": "B"}
+        )
+    return rows
+
+
+def build_many_diagrams() -> list:
+    """EXTREME: long uninterrupted runs of diagram questions with hostile
+    aspect ratios (panoramic, skyscraper, tiny, huge) plus diagram options —
+    the worst case for page-break gaps and mm-cap leaks."""
+    shapes = {
+        "panorama": make_diagram(1800, 200),
+        "skyscraper": make_diagram(200, 1800),
+        "huge": make_diagram(2400, 2400),
+        "tiny": make_diagram(48, 48),
+        "portrait": make_diagram(500, 900),
+        "landscape": make_diagram(900, 500),
+    }
+    names = list(shapes)
+    rows = []
+    for i in range(1, 25):  # 24 consecutive image questions, no text-only relief
+        stem = shapes[names[i % len(names)]]
+        opt = shapes[names[(i + 3) % len(names)]]
+        q = {"text": f"Identify the species in the diagram (Q{i}).", "image": stem}
+        o = {k: {"text": "", "image": opt} for k in "ABCD"}
+        rows.append(
+            {"qno": i, "subject": "Chemistry", "question": q, "options": o, "answer": "C"}
+        )
+    return rows
+
+
+def build_math_heavy() -> list:
+    """EXTREME: math-only paper mixing inline math, long display equations,
+    matrices, integrals and nested fractions with occasional inline diagrams."""
+    inline_img = make_diagram(700, 420)
+    long_eq = (
+        r"$$\int_{0}^{\infty}\frac{x^{n-1}}{e^{x}-1}\,dx"
+        r"=\Gamma(n)\zeta(n)=\sum_{k=1}^{\infty}\frac{\Gamma(n)}{k^{n}}"
+        r"\quad\text{for }\Re(n)>1$$"
+    )
+    matrix = (
+        r"$$\begin{bmatrix} a_{11} & a_{12} & a_{13} \\ "
+        r"a_{21} & a_{22} & a_{23} \\ a_{31} & a_{32} & a_{33}\end{bmatrix}"
+        r"\begin{bmatrix} x \\ y \\ z\end{bmatrix}="
+        r"\begin{bmatrix} \lambda x \\ \lambda y \\ \lambda z\end{bmatrix}$$"
+    )
+    nested = r"$\cfrac{1}{1+\cfrac{1}{1+\cfrac{1}{1+\cfrac{1}{1+x}}}}$"
+    rows = []
+    for i in range(1, 25):
+        m = i % 4
+        if m == 0:
+            q = {"text": f"Evaluate the following integral (Q{i}). {long_eq}"}
+            o = {k: {"text": rf"$\Gamma({i})\zeta({i})/{ord(k) - 64}$"} for k in "ABCD"}
+        elif m == 1:
+            q = {"text": f"Solve the eigenvalue problem (Q{i}). {matrix}"}
+            o = {k: {"text": matrix} for k in "ABCD"}  # display matrices as options
+        elif m == 2:
+            q = {"text": f"Simplify the continued fraction {nested} for case {i}."}
+            o = {k: {"text": nested} for k in "ABCD"}
+        else:
+            q = {
+                "text": (
+                    f"Given the field shown, compute $\\oint \\vec E\\cdot d\\vec A$ (Q{i})."
+                ),
+                "image": inline_img,
+            }
+            o = {
+                k: {"text": rf"$\dfrac{{q_{{{i}}}}}{{{ord(k) - 64}\varepsilon_0}}$"}
+                for k in "ABCD"
+            }
+        rows.append(
+            {"qno": i, "subject": "Mathematics", "question": q, "options": o, "answer": "D"}
+        )
+    return rows
+
+
+FIXTURES = {
+    "sample": ("sample-paper.json", build_paper),
+    "long-tables": ("stress-long-tables.json", build_long_tables),
+    "many-diagrams": ("stress-many-diagrams.json", build_many_diagrams),
+    "math-heavy": ("stress-math-heavy.json", build_math_heavy),
+}
+
+
+
+
+
 MEASURE = """() => {
   const MM = 3.779527559;
   const paper = document.querySelector('.paper');
