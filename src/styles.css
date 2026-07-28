@@ -223,6 +223,40 @@
   column-gap: 8mm;
 }
 
+/* ---- Single-column mode -------------------------------------------------
+   One flow across the full text width. Diagrams keep the same mm caps (they
+   are physical, not percentage based) and options spread into 4 across so a
+   full-width row is not mostly whitespace. */
+.two-col.col-1 {
+  column-count: 1;
+}
+.two-col.col-1 .options {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1mm 6mm;
+}
+.two-col.col-1 .options:has(.opt-text img),
+.two-col.col-1 .options:has(.opt-img) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.two-col.col-1 .options:has(.opt-text table),
+.two-col.col-1 .options:has(.opt-text .katex-display) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+/* Long text options must not be squeezed into 4 narrow ribbons */
+.two-col.col-1 .options:has(.opt-text.long) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.two-col.col-1 .question {
+  margin-bottom: 2.5mm;
+}
+/* Image options are compact in single column so 4 fit on one row */
+.two-col.col-1 .opt-img,
+.two-col.col-1 .opt-text img {
+  max-width: min(var(--diagram-opt-max-w, 34mm), 100%);
+  max-height: var(--diagram-opt-max-h, 34mm);
+}
+
+
 .question {
   break-inside: avoid;
   page-break-inside: avoid;
