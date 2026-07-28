@@ -463,6 +463,17 @@ function Index() {
           </div>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-muted-foreground select-none">
+              Layout
+              <select
+                value={columns}
+                onChange={(e) => setColumns(Number(e.target.value) === 1 ? 1 : 2)}
+                className="rounded-md border bg-background px-2 py-1 text-sm text-foreground"
+              >
+                <option value={2}>2 columns</option>
+                <option value={1}>1 column</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground select-none">
               <input
                 type="checkbox"
                 checked={debugBoxes}
