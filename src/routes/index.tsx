@@ -100,8 +100,7 @@ const DEFAULT_QUESTION_TEMPLATE = `<div class="question">
 
 const DEFAULT_OPTION_TEMPLATE = `<li class="option">
   <span class="opt-num">({{index}})</span>
-  <span class="opt-text">{{text}}</span>
-  {{image}}
+  <span class="opt-text">{{text}}{{image}}</span>
 </li>`;
 
 const DEFAULT_CUSTOM_CSS = `/* Add or override styles. These apply to preview + print. */
@@ -180,9 +179,23 @@ function sanitizeInlineHtml(raw: string): string {
     "gi"
   );
 
-  return escaped.replace(re, (_m, slash, tag, _attrs: string, selfClose: string) => {
+  const withTags = escaped.replace(re, (_m, slash, tag, _attrs: string, selfClose: string) => {
     return `<${slash}${tag.toLowerCase()}${selfClose}>`;
   });
+
+  // Inline diagrams: keep <img> but only with an allowlisted src. Every other
+  // attribute (width/height/style) is dropped so CSS controls the mm sizing.
+  return withTags.replace(
+    /&lt;img((?:\s(?:(?!&gt;)[\s\S])*?)?)\s*\/?&gt;/gi,
+    (_m, attrs: string) => {
+      const srcMatch = /src\s*=\s*(?:&quot;([^&]*)&quot;|&#39;([^&]*)&#39;|([^\s&]+))/i.exec(
+        attrs ?? ""
+      );
+      const rawSrc = decodeHtmlEntities(srcMatch?.[1] ?? srcMatch?.[2] ?? srcMatch?.[3] ?? "");
+      const safe = safeImageUrl(rawSrc);
+      return safe ? `<img src="${safe}" alt="" />` : "";
+    }
+  );
 }
 
 

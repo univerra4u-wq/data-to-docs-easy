@@ -281,16 +281,19 @@
 .option:has(.katex-display) {
   grid-column: 1 / -1;
 }
+/* Diagram options stay in the 2x2 grid; the image must never push the
+   option number onto its own line or blow past the column. */
 .option { display: flex; gap: 3px; align-items: baseline; min-width: 0; }
+.option:has(img) { align-items: flex-start; }
 .opt-num { font-weight: 600; flex: none; }
 .opt-text { flex: 1; min-width: 0; max-width: 100%; }
 .opt-img {
   display: block;
   margin: 1mm auto;
-  width: auto;
-  height: auto;
-  max-width: min(var(--diagram-opt-max-w), 100%);
-  max-height: var(--diagram-opt-max-h);
+  width: auto !important;
+  height: auto !important;
+  max-width: min(var(--diagram-opt-max-w, 34mm), 100%);
+  max-height: var(--diagram-opt-max-h, 34mm);
   object-fit: contain;
 }
 
@@ -298,15 +301,38 @@
 .qtext img, .opt-text img {
   display: block;
   margin: 1mm auto;
-  width: auto;
-  height: auto;
-  max-width: min(var(--diagram-max-w), 100%);
-  max-height: var(--diagram-max-h);
+  width: auto !important;
+  height: auto !important;
+  max-width: min(var(--diagram-max-w, 45mm), 100%);
+  max-height: var(--diagram-max-h, 45mm);
   object-fit: contain;
 }
 .opt-text img {
-  max-width: min(var(--diagram-opt-max-w), 100%);
-  max-height: var(--diagram-opt-max-h);
+  max-width: min(var(--diagram-opt-max-w, 34mm), 100%);
+  max-height: var(--diagram-opt-max-h, 34mm);
+}
+
+/* Safety net: any diagram anywhere in the paper (inline in a table cell,
+   dropped straight into .question, or carrying native width/height attrs)
+   is still capped to physical mm and never uses its pixel size. */
+.paper img {
+  width: auto !important;
+  height: auto !important;
+  max-width: min(var(--diagram-max-w, 45mm), 100%);
+  max-height: var(--diagram-max-h, 45mm);
+  object-fit: contain;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.paper .option img,
+.paper .options img {
+  max-width: min(var(--diagram-opt-max-w, 34mm), 100%);
+  max-height: var(--diagram-opt-max-h, 34mm);
+}
+/* Tables holding diagrams must not force nowrap cells to stretch */
+.qtext table img, .opt-text table img {
+  max-width: min(var(--diagram-opt-max-w, 34mm), 100%);
+  max-height: var(--diagram-opt-max-h, 34mm);
 }
 
 
@@ -430,18 +456,23 @@
     page-break-inside: avoid;
   }
   /* Diagrams keep their physical mm caps in the PDF, never native px size */
-  .qimage img, .qtext img {
+  .paper img, .qimage img, .qtext img {
     width: auto !important;
     height: auto !important;
-    max-width: min(var(--diagram-max-w), 100%) !important;
-    max-height: var(--diagram-max-h) !important;
+    max-width: min(var(--diagram-max-w, 45mm), 100%) !important;
+    max-height: var(--diagram-max-h, 45mm) !important;
+    object-fit: contain !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
-  .opt-img, .opt-text img {
+  .opt-img, .opt-text img, .option img, .options img {
     width: auto !important;
     height: auto !important;
-    max-width: min(var(--diagram-opt-max-w), 100%) !important;
-    max-height: var(--diagram-opt-max-h) !important;
+    max-width: min(var(--diagram-opt-max-w, 34mm), 100%) !important;
+    max-height: var(--diagram-opt-max-h, 34mm) !important;
   }
+  /* An image option must keep its number on the same line as the diagram */
+  .option:has(img) { align-items: flex-start; }
 }
 
 
