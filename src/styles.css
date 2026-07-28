@@ -156,6 +156,25 @@
   overflow: auto;
 }
 
+/* The preview must always be a true A4 text column (190mm) so millimetre
+   diagram caps mean the same thing on every screen. On small viewports we
+   scale the whole sheet down instead of letting it reflow narrower. */
+.preview-frame .paper {
+  width: 190mm;
+  transform-origin: top left;
+}
+
+@media (max-width: 1024px) {
+  .preview-frame { padding: 8mm; }
+  .preview-frame .paper { zoom: 0.6; }
+}
+
+@media (max-width: 640px) {
+  .preview-frame { padding: 4mm; }
+  .preview-frame .paper { zoom: 0.42; }
+}
+
+
 .paper {
   font-family: "Times New Roman", Times, serif;
   color: #000;
