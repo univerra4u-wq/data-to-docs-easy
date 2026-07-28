@@ -289,65 +289,81 @@ class Report:
             self.failures.append(f"{label}{(' — ' + detail) if detail else ''}")
 
 
-async def run(url: str) -> int:
-    data = json.loads(FIXTURE.read_text()) if FIXTURE.exists() else build_paper()
-    report = Report()
+def load_fixture(name: str) -> list:
+    filename, builder = FIXTURES[name]
+    path = FIXTURE_DIR / filename
+    return json.loads(path.read_text()) if path.exists() else builder()
 
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
-        context = await browser.new_context(viewport={"width": 1280, "height": 1800})
-        page = await context.new_page()
-        await page.goto(url, wait_until="networkidle")
-        await page.locator("textarea").first.fill(json.dumps(data))
-        await page.wait_for_timeout(2500)
 
-        for layout, value in (("2 columns", "2"), ("1 column", "1")):
-            await page.select_option("select", value)
-            await page.wait_for_timeout(1500)
-            for label, w, h in BREAKPOINTS:
-                await page.set_viewport_size({"width": w, "height": h})
-                await page.wait_for_timeout(900)
-                m = await page.evaluate(MEASURE)
-                print(f"\n[{layout} / {label}] {m}")
-                report.check(m["count"] > 0, f"{layout}/{label}: diagrams rendered")
+async def check_fixture(page, name: str, report: Report) -> bytes:
+    data = load_fixture(name)
+    print(f"\n=================== fixture: {name} ({len(data)} questions) ===================")
+    await page.set_viewport_size({"width": 1280, "height": 1800})
+    await page.locator("textarea").first.fill(json.dumps(data))
+    await page.wait_for_timeout(3000)
+
+    for layout, value in (("2col", "2"), ("1col", "1")):
+        await page.select_option("select", value)
+        await page.wait_for_timeout(1500)
+        for label, w, h in BREAKPOINTS:
+            await page.set_viewport_size({"width": w, "height": h})
+            await page.wait_for_timeout(900)
+            m = await page.evaluate(MEASURE)
+            tag = f"{name}/{layout}/{label}"
+            print(f"\n[{tag}] {m}")
+            report.check(
+                m["count"] > 0 or m["tables"] > 0 or m["mathBlocks"] > 0,
+                f"{tag}: content rendered",
+            )
+            report.check(m["overCap"] == 0, f"{tag}: no diagram over its mm cap", f"{m['overCap']} over")
+            report.check(
+                m["overflowing"] == 0,
+                f"{tag}: no diagram overflows its container",
+                f"{m['overflowing']} overflowing",
+            )
+            report.check(
+                m["splitOptionGrids"] == 0,
+                f"{tag}: no option grid split across a break",
+                f"{m['splitOptionGrids']} split",
+            )
+            report.check(
+                m["overflowingBlocks"] == 0,
+                f"{tag}: no table/display-math spills out of its column",
+                f"{m['overflowingBlocks']} spilling",
+            )
+            report.check(
+                m["collapsedCells"] == 0,
+                f"{tag}: no table cell collapsed to vertical text",
+                f"{m['collapsedCells']} collapsed",
+            )
+            if m["qMax"] is not None:
                 report.check(
-                    m["overCap"] == 0,
-                    f"{layout}/{label}: no diagram over its mm cap",
-                    f"{m['overCap']} over cap",
+                    abs(m["qMax"] - Q_CAP) <= TOL,
+                    f"{tag}: question diagrams hit the 45mm cap exactly",
+                    f"{m['qMax']}mm",
                 )
+            if m["optMax"] is not None:
                 report.check(
-                    m["overflowing"] == 0,
-                    f"{layout}/{label}: no diagram overflows its container",
-                    f"{m['overflowing']} overflowing",
-                )
-                report.check(
-                    m["splitOptionGrids"] == 0,
-                    f"{layout}/{label}: no option grid split across a break",
-                    f"{m['splitOptionGrids']} split",
-                )
-                report.check(
-                    abs(m["qMax"] - Q_CAP) <= TOL and abs(m["optMax"] - OPT_CAP) <= TOL,
-                    f"{layout}/{label}: mm caps consistent across breakpoints",
-                    f"question {m['qMax']}mm (exp {Q_CAP}), option {m['optMax']}mm (exp {OPT_CAP})",
+                    abs(m["optMax"] - OPT_CAP) <= TOL,
+                    f"{tag}: option diagrams hit the 34mm cap exactly",
+                    f"{m['optMax']}mm",
                 )
 
-        # Real A4 print pass — page-break integrity.
-        await page.set_viewport_size({"width": 1280, "height": 1800})
-        await page.wait_for_timeout(800)
-        pdf = await page.pdf(
-            format="A4",
-            margin={"top": "12mm", "bottom": "12mm", "left": "10mm", "right": "10mm"},
-            print_background=True,
-        )
-        await browser.close()
+    await page.set_viewport_size({"width": 1280, "height": 1800})
+    await page.wait_for_timeout(800)
+    return await page.pdf(
+        format="A4",
+        margin={"top": "12mm", "bottom": "12mm", "left": "10mm", "right": "10mm"},
+        print_background=True,
+    )
 
-    print("\n[print / A4]")
+
+def check_pdf(pdf: bytes, name: str, report: Report) -> None:
     try:
         import fitz  # PyMuPDF
     except ImportError:
-        print("  SKIP  PyMuPDF not installed — page-break check skipped")
-        return finish(report)
-
+        print(f"  SKIP  {name}: PyMuPDF not installed — page-break check skipped")
+        return
     doc = fitz.open(stream=pdf, filetype="pdf")
     pt = 72 / 25.4
     clipped = oversize = 0
@@ -359,9 +375,24 @@ async def run(url: str) -> int:
                 clipped += 1
             if (x1 - x0) / pt > Q_CAP + TOL or (y1 - y0) / pt > Q_CAP + TOL:
                 oversize += 1
-    print(f"  pages={doc.page_count}")
-    report.check(clipped == 0, "print: no diagram clipped by a page break", f"{clipped} clipped")
-    report.check(oversize == 0, "print: no diagram over 45mm in the PDF", f"{oversize} oversize")
+    print(f"\n[{name}/print] pages={doc.page_count}")
+    report.check(clipped == 0, f"{name}/print: no diagram clipped by a page break", f"{clipped} clipped")
+    report.check(oversize == 0, f"{name}/print: no diagram over 45mm on paper", f"{oversize} oversize")
+
+
+async def run(url: str, names: list) -> int:
+    report = Report()
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(headless=True)
+        context = await browser.new_context(viewport={"width": 1280, "height": 1800})
+        page = await context.new_page()
+        await page.goto(url, wait_until="networkidle")
+        pdfs = {}
+        for name in names:
+            pdfs[name] = await check_fixture(page, name, report)
+        await browser.close()
+    for name, pdf in pdfs.items():
+        check_pdf(pdf, name, report)
     return finish(report)
 
 
@@ -379,11 +410,24 @@ def finish(report: Report) -> int:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", default="http://localhost:8080")
-    ap.add_argument("--write-fixture", action="store_true", help="regenerate the sample JSON")
+    ap.add_argument(
+        "--fixtures",
+        default="all",
+        help="comma-separated subset of: " + ", ".join(FIXTURES) + " (default: all)",
+    )
+    ap.add_argument("--write-fixtures", action="store_true", help="regenerate fixture JSON files")
     args = ap.parse_args()
-    if args.write_fixture:
-        FIXTURE.parent.mkdir(parents=True, exist_ok=True)
-        FIXTURE.write_text(json.dumps(build_paper()))
-        print(f"wrote {FIXTURE}")
+
+    if args.write_fixtures:
+        FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
+        for key, (filename, builder) in FIXTURES.items():
+            (FIXTURE_DIR / filename).write_text(json.dumps(builder()))
+            print(f"wrote {FIXTURE_DIR / filename}")
         sys.exit(0)
-    sys.exit(asyncio.run(run(args.url)))
+
+    selected = list(FIXTURES) if args.fixtures == "all" else args.fixtures.split(",")
+    unknown = [n for n in selected if n not in FIXTURES]
+    if unknown:
+        sys.exit(f"unknown fixture(s): {', '.join(unknown)}")
+    sys.exit(asyncio.run(run(args.url, selected)))
+
