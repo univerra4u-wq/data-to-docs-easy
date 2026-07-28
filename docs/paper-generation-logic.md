@@ -355,8 +355,24 @@ tablet (834) and mobile (390):
 It then prints a real A4 PDF and verifies no image is clipped by a page
 boundary and none exceeds 45mm on paper.
 
+### Fixtures
+
+| Fixture | File | Covers |
+| --- | --- | --- |
+| `sample` | `tests/fixtures/sample-paper.json` | 30 mixed questions: tall/wide/square diagrams, display math, captioned truth tables, long wrapping text |
+| `long-tables` | `tests/fixtures/stress-long-tables.json` | up to 30-row x 6-column data tables in the stem plus table options (blocks taller/wider than one column) |
+| `many-diagrams` | `tests/fixtures/stress-many-diagrams.json` | 24 consecutive diagram questions with hostile aspect ratios (1800x200 panorama, 200x1800 skyscraper, 2400px square, 48px thumbnail) and diagram options |
+| `math-heavy` | `tests/fixtures/stress-math-heavy.json` | long display integrals, 3x3 matrix equations as options, nested continued fractions, inline math + diagram mixes |
+
+Every fixture is checked in both layouts at all three breakpoints for: mm caps,
+container overflow, split option grids, tables/display math spilling out of the
+column, and cells collapsing to vertical text. Each also gets an A4 print pass
+checking clipped diagrams, oversize diagrams, and text/table blocks crossing a
+page margin.
+
 ```bash
-python3 scripts/layout-regression.py                 # exit 0 = clean
+python3 scripts/layout-regression.py                       # all fixtures, exit 0 = clean
+python3 scripts/layout-regression.py --fixtures long-tables,math-heavy
 python3 scripts/layout-regression.py --url http://localhost:8080
-python3 scripts/layout-regression.py --write-fixture # regenerate sample JSON
+python3 scripts/layout-regression.py --write-fixtures      # regenerate fixture JSON
 ```
