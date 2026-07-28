@@ -246,20 +246,37 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1mm 6mm;
 }
+/* An option holding a table, matrix or image needs the full width — otherwise
+   the half-column forces per-character wrapping ("T a b l e"). */
+.options:has(.opt-text table),
+.options:has(.opt-text .katex-display),
+.options:has(.opt-img) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.option:has(table),
+.option:has(.katex-display),
+.option:has(.opt-img) {
+  grid-column: 1 / -1;
+}
 .option { display: flex; gap: 3px; align-items: baseline; min-width: 0; }
 .opt-num { font-weight: 600; flex: none; }
-.opt-text { flex: 1; min-width: max-content; max-width: 100%; }
+.opt-text { flex: 1; min-width: 0; max-width: 100%; }
 .opt-img { display: block; max-width: 100%; }
 
+/* Short labels such as "Table (P)" / "Matrix Q" must never break per letter */
+.opt-text,
 .opt-text span,
 .opt-text small,
 .opt-text strong,
 .opt-text b,
 .opt-text em,
 .opt-text i,
-.opt-text u {
+.opt-text u,
+.qtext caption,
+.opt-text caption {
   overflow-wrap: normal;
   word-break: keep-all;
+  hyphens: none;
 }
 
 
@@ -277,13 +294,17 @@
   vertical-align: top;
   font-size: 0.95em;
   text-align: center;
+  table-layout: auto;
   break-inside: avoid;
   page-break-inside: avoid;
 }
 
 .qtext table thead, .opt-text table thead, .question table thead { display: table-header-group; }
 .qtext table tbody, .opt-text table tbody, .question table tbody { display: table-row-group; }
+.qtext table tfoot, .opt-text table tfoot, .question table tfoot { display: table-footer-group; }
 .qtext table tr, .opt-text table tr, .question table tr { display: table-row; }
+.qtext table colgroup, .opt-text table colgroup, .question table colgroup { display: table-column-group; }
+.qtext table col, .opt-text table col, .question table col { display: table-column; }
 .qtext table th, .opt-text table th, .question table th,
 .qtext table td, .opt-text table td, .question table td {
   display: table-cell;
@@ -292,9 +313,37 @@
   vertical-align: middle;
   text-align: center;
   white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .qtext table th, .opt-text table th, .question table th { font-weight: 700; }
+
+/* Table captions / titles ("Table (P)") sit above the grid on one line */
+.qtext table caption,
+.opt-text table caption,
+.question table caption {
+  display: table-caption;
+  caption-side: top;
+  white-space: nowrap;
+  text-align: center;
+  font-weight: 600;
+  padding-bottom: 1px;
+}
+
+/* Matrices and other KaTeX arrays: keep them on one line, never per-character */
+.qtext .katex .mtable,
+.opt-text .katex .mtable,
+.qtext .katex .arraycolsep,
+.opt-text .katex .arraycolsep {
+  white-space: nowrap;
+}
+.qtext .katex .mtable .vlist-t,
+.opt-text .katex .mtable .vlist-t { white-space: nowrap; }
+.opt-text .katex,
+.opt-text .katex-html { white-space: nowrap; }
+.opt-text .katex-display > .katex { white-space: normal; }
+
 
 
 .empty-state {
