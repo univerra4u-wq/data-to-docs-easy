@@ -301,15 +301,38 @@
 .qtext img, .opt-text img {
   display: block;
   margin: 1mm auto;
-  width: auto;
-  height: auto;
-  max-width: min(var(--diagram-max-w), 100%);
-  max-height: var(--diagram-max-h);
+  width: auto !important;
+  height: auto !important;
+  max-width: min(var(--diagram-max-w, 45mm), 100%);
+  max-height: var(--diagram-max-h, 45mm);
   object-fit: contain;
 }
 .opt-text img {
-  max-width: min(var(--diagram-opt-max-w), 100%);
-  max-height: var(--diagram-opt-max-h);
+  max-width: min(var(--diagram-opt-max-w, 34mm), 100%);
+  max-height: var(--diagram-opt-max-h, 34mm);
+}
+
+/* Safety net: any diagram anywhere in the paper (inline in a table cell,
+   dropped straight into .question, or carrying native width/height attrs)
+   is still capped to physical mm and never uses its pixel size. */
+.paper img {
+  width: auto !important;
+  height: auto !important;
+  max-width: min(var(--diagram-max-w, 45mm), 100%);
+  max-height: var(--diagram-max-h, 45mm);
+  object-fit: contain;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.paper .option img,
+.paper .options img {
+  max-width: min(var(--diagram-opt-max-w, 34mm), 100%);
+  max-height: var(--diagram-opt-max-h, 34mm);
+}
+/* Tables holding diagrams must not force nowrap cells to stretch */
+.qtext table img, .opt-text table img {
+  max-width: min(var(--diagram-opt-max-w, 34mm), 100%);
+  max-height: var(--diagram-opt-max-h, 34mm);
 }
 
 
