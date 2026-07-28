@@ -459,14 +459,24 @@ function Index() {
               Upload JSON, customize the template, then Print → Save as PDF.
             </p>
           </div>
-          <button
-            onClick={() => window.print()}
-            disabled={!canPrint}
-            title={!canPrint ? "Fix JSON errors first" : "Open print dialog"}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
-            Download PDF
-          </button>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground select-none">
+              <input
+                type="checkbox"
+                checked={debugBoxes}
+                onChange={(e) => setDebugBoxes(e.target.checked)}
+              />
+              Debug diagram boxes (mm)
+            </label>
+            <button
+              onClick={() => window.print()}
+              disabled={!canPrint}
+              title={!canPrint ? "Fix JSON errors first" : "Open print dialog"}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              Download PDF
+            </button>
+          </div>
         </div>
       </div>
 
