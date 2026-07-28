@@ -179,8 +179,8 @@
   font-family: "Times New Roman", Times, serif;
   color: #000;
   background: #fff;
-  font-size: 10pt;
-  line-height: 1.35;
+  font-size: var(--paper-font-size, 10pt);
+  line-height: var(--paper-line-height, 1.35);
 }
 
 .paper-header {
@@ -239,7 +239,7 @@
 
 .two-col {
   column-count: 2;
-  column-gap: 8mm;
+  column-gap: var(--paper-column-gap, 8mm);
 }
 
 /* ---- Single-column mode -------------------------------------------------
@@ -279,7 +279,7 @@
 .question {
   break-inside: avoid;
   page-break-inside: avoid;
-  margin-bottom: 3mm;
+  margin-bottom: var(--question-gap, 3mm);
 }
 
 .qrow { display: flex; gap: 4px; }
@@ -322,7 +322,31 @@
   /* minmax(0,1fr) stops wide content (tables, math) from squeezing a column
      down to one character per line */
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1mm 6mm;
+  gap: var(--option-row-gap, 1mm) 6mm;
+}
+.layout-option-1 .options,
+.layout-option-1 .two-col.col-1 .options,
+.layout-option-1 .two-col.col-1 .options:has(.opt-text img),
+.layout-option-1 .two-col.col-1 .options:has(.opt-img),
+.layout-option-1 .two-col.col-1 .options:has(.opt-text table),
+.layout-option-1 .two-col.col-1 .options:has(.opt-text .katex-display) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.layout-option-2 .options,
+.layout-option-2 .two-col.col-1 .options,
+.layout-option-2 .two-col.col-1 .options:has(.opt-text img),
+.layout-option-2 .two-col.col-1 .options:has(.opt-img),
+.layout-option-2 .two-col.col-1 .options:has(.opt-text table),
+.layout-option-2 .two-col.col-1 .options:has(.opt-text .katex-display) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.layout-option-4 .options,
+.layout-option-4 .two-col.col-1 .options,
+.layout-option-4 .two-col.col-1 .options:has(.opt-text img),
+.layout-option-4 .two-col.col-1 .options:has(.opt-img),
+.layout-option-4 .two-col.col-1 .options:has(.opt-text table),
+.layout-option-4 .two-col.col-1 .options:has(.opt-text .katex-display) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 /* An option holding a table or display matrix needs the full width — otherwise
    the half-column forces per-character wrapping ("T a b l e"). */
@@ -419,6 +443,7 @@
   margin: 1.5mm 4mm 1.5mm 0;
   vertical-align: top;
   font-size: 0.95em;
+  font-size: calc(var(--table-font-scale, 0.95) * 1em);
   text-align: center;
   table-layout: auto;
   break-inside: avoid;
@@ -479,11 +504,17 @@
   font-family: system-ui, sans-serif;
 }
 
-.katex { font-size: 1em; }
-.katex-display { margin: 4px 0; overflow-x: auto; overflow-y: hidden; max-width: 100%; }
+.katex { font-size: calc(var(--math-scale, 1) * 1em); }
+.katex-display { margin: 4px 0; overflow-x: clip; overflow-y: hidden; max-width: 100%; }
 .qtext .katex, .opt-text .katex { white-space: normal; }
 .qtext, .opt-text { overflow-wrap: break-word; word-break: normal; }
-.katex .base { white-space: normal; }
+.katex .base { white-space: nowrap; }
+.katex-display > .katex,
+.opt-text > .katex,
+.qtext > .katex {
+  max-width: 100%;
+  transform-origin: left top;
+}
 /* Hide MathML from visual output — KaTeX ships it for a11y only */
 .katex .katex-mathml { position: absolute; clip: rect(1px,1px,1px,1px); padding: 0; border: 0; height: 1px; width: 1px; overflow: hidden; }
 
@@ -551,7 +582,7 @@
   html, body { background: #fff !important; }
   .no-print { display: none !important; }
   .print-only { display: block !important; }
-  .paper { font-size: 9.5pt; }
+  .paper { font-size: calc(var(--paper-font-size, 10pt) * 0.95); }
   /* Keep table borders and prevent any scroll container hiding cells */
   .qtext table, .opt-text table, .question table {
     -webkit-print-color-adjust: exact;
