@@ -282,6 +282,7 @@ function Index() {
   const [questionTpl, setQuestionTpl] = useState(DEFAULT_QUESTION_TEMPLATE);
   const [optionTpl, setOptionTpl] = useState(DEFAULT_OPTION_TEMPLATE);
   const [customCss, setCustomCss] = useState(DEFAULT_CUSTOM_CSS);
+  const [debugBoxes, setDebugBoxes] = useState(false);
 
   const validate = (text: string) => {
     setErrors([]);
@@ -399,6 +400,45 @@ function Index() {
 
   const canPrint = !!items && errors.length === 0;
 
+  // ---- Temporary debug overlay: measure every diagram in mm ----
+  useEffect(() => {
+    const PX_PER_MM = 96 / 25.4;
+    const imgs = Array.from(document.querySelectorAll<HTMLImageElement>(".paper img"));
+    if (!debugBoxes) {
+      imgs.forEach((img) => {
+        img.removeAttribute("data-mm");
+        img.removeAttribute("data-overflow");
+        img.parentElement?.removeAttribute("data-mmlabel");
+      });
+      return;
+    }
+    const measure = () => {
+      document.querySelectorAll<HTMLImageElement>(".paper img").forEach((img) => {
+        const r = img.getBoundingClientRect();
+        const w = r.width / PX_PER_MM;
+        const h = r.height / PX_PER_MM;
+        const isOpt = !!img.closest(".option, .options, .opt-text");
+        const cap = isOpt ? 34 : 45;
+        const parent = img.parentElement?.getBoundingClientRect();
+        const overflows =
+          w > cap + 0.6 || h > cap + 0.6 || (!!parent && r.width > parent.width + 1);
+        const label = `${w.toFixed(1)}×${h.toFixed(1)}mm / cap ${cap}mm`;
+        img.setAttribute("data-mm", label);
+        img.parentElement?.setAttribute("data-mmlabel", label);
+        if (overflows) img.setAttribute("data-overflow", "1");
+        else img.removeAttribute("data-overflow");
+      });
+    };
+    measure();
+    const t = window.setTimeout(measure, 400);
+    window.addEventListener("resize", measure);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("resize", measure);
+    };
+  }, [debugBoxes, paperHtml]);
+
+
   const resetTemplate = (which: "header" | "question" | "option" | "css") => {
     if (which === "header") setHeaderTpl(DEFAULT_HEADER_TEMPLATE);
     if (which === "question") setQuestionTpl(DEFAULT_QUESTION_TEMPLATE);
@@ -407,7 +447,7 @@ function Index() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/40">
+    <div className={`min-h-screen bg-muted/40${debugBoxes ? " debug-diagrams" : ""}`}>
       {/* Injected custom CSS (preview + print) */}
       <style dangerouslySetInnerHTML={{ __html: customCss }} />
 
@@ -419,14 +459,24 @@ function Index() {
               Upload JSON, customize the template, then Print → Save as PDF.
             </p>
           </div>
-          <button
-            onClick={() => window.print()}
-            disabled={!canPrint}
-            title={!canPrint ? "Fix JSON errors first" : "Open print dialog"}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
-            Download PDF
-          </button>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground select-none">
+              <input
+                type="checkbox"
+                checked={debugBoxes}
+                onChange={(e) => setDebugBoxes(e.target.checked)}
+              />
+              Debug diagram boxes (mm)
+            </label>
+            <button
+              onClick={() => window.print()}
+              disabled={!canPrint}
+              title={!canPrint ? "Fix JSON errors first" : "Open print dialog"}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              Download PDF
+            </button>
+          </div>
         </div>
       </div>
 
