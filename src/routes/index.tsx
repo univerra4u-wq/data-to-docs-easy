@@ -325,7 +325,7 @@ function Index() {
   const [fileName, setFileName] = useState<string>("");
   const [items, setItems] = useState<QItem[] | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
-  const [tab, setTab] = useState<"data" | "header" | "templates">("data");
+  const [tab, setTab] = useState<"data" | "header" | "layout" | "templates">("data");
 
   const [headerTpl, setHeaderTpl] = useState(DEFAULT_HEADER_TEMPLATE);
   const [questionTpl, setQuestionTpl] = useState(DEFAULT_QUESTION_TEMPLATE);
