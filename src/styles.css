@@ -230,22 +230,22 @@
 .two-col.col-1 {
   column-count: 1;
 }
+/* Default in single column: 2 across (text options stay readable) */
 .two-col.col-1 .options {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1mm 6mm;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1mm 8mm;
 }
+/* Pure diagram options are short: 4 across kills the dead whitespace */
 .two-col.col-1 .options:has(.opt-text img),
 .two-col.col-1 .options:has(.opt-img) {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-items: center;
 }
 .two-col.col-1 .options:has(.opt-text table),
 .two-col.col-1 .options:has(.opt-text .katex-display) {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-/* Long text options must not be squeezed into 4 narrow ribbons */
-.two-col.col-1 .options:has(.opt-text.long) {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
+
 .two-col.col-1 .question {
   margin-bottom: 2.5mm;
 }
