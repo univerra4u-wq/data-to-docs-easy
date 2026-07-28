@@ -242,17 +242,41 @@ MEASURE = """() => {
     return uniqueLefts.length > 4 || jumpedBack;
   }).length;
 
+  // Extreme tables / display math must not spill outside the text column and
+  // must never collapse to one character per line.
+  const wide = [...document.querySelectorAll('.paper table, .paper .katex-display')];
+  const overflowingBlocks = wide.filter((el) => {
+    const r = el.getBoundingClientRect();
+    const host = el.closest('.qtext, .opt-text, .question');
+    return host ? r.right > host.getBoundingClientRect().right + 1.5 : false;
+  }).length;
+  const collapsedCells = [...document.querySelectorAll('.paper table td, .paper table th, .paper table caption')]
+    .filter((td) => {
+      const t = (td.textContent || '').trim();
+      const r = td.getBoundingClientRect();
+      // >2 chars rendered in a box narrower than ~1.6 chars wide = vertical text
+      return t.length > 2 && r.height > r.width * 2.5;
+    }).length;
+
+  const q = imgs.filter((i) => !i.opt).map((i) => Math.max(i.w, i.h));
+  const o = imgs.filter((i) => i.opt).map((i) => Math.max(i.w, i.h));
+
   return {
     count: imgs.length,
     overCap: imgs.filter((i) => (i.opt ? Math.max(i.w, i.h) > 34.6 : Math.max(i.w, i.h) > 45.6)).length,
     overflowing: imgs.filter((i) => i.overflow).length,
-    qMax: +Math.max(...imgs.filter((i) => !i.opt).map((i) => Math.max(i.w, i.h))).toFixed(1),
-    optMax: +Math.max(...imgs.filter((i) => i.opt).map((i) => Math.max(i.w, i.h))).toFixed(1),
+    qMax: q.length ? +Math.max(...q).toFixed(1) : null,
+    optMax: o.length ? +Math.max(...o).toFixed(1) : null,
     splitOptionGrids: splits,
+    overflowingBlocks,
+    collapsedCells,
+    tables: document.querySelectorAll('.paper table').length,
+    mathBlocks: document.querySelectorAll('.paper .katex').length,
     columnCount: getComputedStyle(document.querySelector('.two-col')).columnCount,
     paperMm: +paperW.toFixed(1),
   };
 }"""
+
 
 
 class Report:
