@@ -31,7 +31,8 @@ from PIL import Image, ImageDraw
 from playwright.async_api import async_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
-FIXTURE = ROOT / "tests" / "fixtures" / "sample-paper.json"
+FIXTURE_DIR = ROOT / "tests" / "fixtures"
+
 
 MM = 3.779527559  # CSS px per mm at 96dpi
 Q_CAP = 45.0
