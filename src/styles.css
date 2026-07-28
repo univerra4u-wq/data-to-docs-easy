@@ -281,16 +281,19 @@
 .option:has(.katex-display) {
   grid-column: 1 / -1;
 }
+/* Diagram options stay in the 2x2 grid; the image must never push the
+   option number onto its own line or blow past the column. */
 .option { display: flex; gap: 3px; align-items: baseline; min-width: 0; }
+.option:has(img) { align-items: flex-start; }
 .opt-num { font-weight: 600; flex: none; }
 .opt-text { flex: 1; min-width: 0; max-width: 100%; }
 .opt-img {
   display: block;
   margin: 1mm auto;
-  width: auto;
-  height: auto;
-  max-width: min(var(--diagram-opt-max-w), 100%);
-  max-height: var(--diagram-opt-max-h);
+  width: auto !important;
+  height: auto !important;
+  max-width: min(var(--diagram-opt-max-w, 34mm), 100%);
+  max-height: var(--diagram-opt-max-h, 34mm);
   object-fit: contain;
 }
 
