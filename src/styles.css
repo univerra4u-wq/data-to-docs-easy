@@ -233,8 +233,33 @@
 .qnum { font-weight: 700; min-width: 18px; }
 .qtext { flex: 1; min-width: 0; text-align: justify; }
 
-.qimage { margin: 2mm 0 2mm 22px; }
-.qimage img { max-width: 100%; }
+/* ---- Diagram sizing ----------------------------------------------------
+   Images are NEVER rendered at their native pixel size. Every diagram is
+   capped to standardized physical dimensions (mm) so it fits the column,
+   stays centered, and never dominates the page. Aspect ratio is preserved
+   via width/height:auto + object-fit: contain. */
+.paper {
+  --diagram-max-w: 45mm;   /* chemistry structures, Newman projections */
+  --diagram-max-h: 45mm;
+  --diagram-opt-max-w: 34mm;  /* option diagrams are visually simpler */
+  --diagram-opt-max-h: 34mm;
+}
+
+.qimage {
+  margin: 2mm 0 2mm 22px;
+  text-align: center;
+}
+.qimage img {
+  display: block;
+  margin: 0 auto;
+  width: auto;
+  height: auto;
+  max-width: min(var(--diagram-max-w), 100%);
+  max-height: var(--diagram-max-h);
+  object-fit: contain;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
 
 .options {
   list-style: none;
@@ -246,22 +271,44 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1mm 6mm;
 }
-/* An option holding a table, matrix or image needs the full width — otherwise
+/* An option holding a table or display matrix needs the full width — otherwise
    the half-column forces per-character wrapping ("T a b l e"). */
 .options:has(.opt-text table),
-.options:has(.opt-text .katex-display),
-.options:has(.opt-img) {
+.options:has(.opt-text .katex-display) {
   grid-template-columns: minmax(0, 1fr);
 }
 .option:has(table),
-.option:has(.katex-display),
-.option:has(.opt-img) {
+.option:has(.katex-display) {
   grid-column: 1 / -1;
 }
 .option { display: flex; gap: 3px; align-items: baseline; min-width: 0; }
 .opt-num { font-weight: 600; flex: none; }
 .opt-text { flex: 1; min-width: 0; max-width: 100%; }
-.opt-img { display: block; max-width: 100%; }
+.opt-img {
+  display: block;
+  margin: 1mm auto;
+  width: auto;
+  height: auto;
+  max-width: min(var(--diagram-opt-max-w), 100%);
+  max-height: var(--diagram-opt-max-h);
+  object-fit: contain;
+}
+
+/* Inline images inside question/option rich text obey the same caps */
+.qtext img, .opt-text img {
+  display: block;
+  margin: 1mm auto;
+  width: auto;
+  height: auto;
+  max-width: min(var(--diagram-max-w), 100%);
+  max-height: var(--diagram-max-h);
+  object-fit: contain;
+}
+.opt-text img {
+  max-width: min(var(--diagram-opt-max-w), 100%);
+  max-height: var(--diagram-opt-max-h);
+}
+
 
 /* Short labels such as "Table (P)" / "Matrix Q" must never break per letter */
 .opt-text,
