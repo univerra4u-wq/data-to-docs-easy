@@ -447,7 +447,7 @@ function Index() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/40">
+    <div className={`min-h-screen bg-muted/40${debugBoxes ? " debug-diagrams" : ""}`}>
       {/* Injected custom CSS (preview + print) */}
       <style dangerouslySetInnerHTML={{ __html: customCss }} />
 
