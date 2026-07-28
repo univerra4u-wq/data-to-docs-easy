@@ -361,7 +361,7 @@ function Index() {
         (g) =>
           `<section class="subject-section"><h2 class="subject-heading">${escapeHtml(
             g.subject
-          )}</h2><div class="two-col">${g.items
+          )}</h2><div class="two-col col-${columns}">${g.items
             .map((q) => {
               const keys = Object.keys(q.options);
               const optsHtml = keys
