@@ -399,6 +399,45 @@ function Index() {
 
   const canPrint = !!items && errors.length === 0;
 
+  // ---- Temporary debug overlay: measure every diagram in mm ----
+  useEffect(() => {
+    const PX_PER_MM = 96 / 25.4;
+    const imgs = Array.from(document.querySelectorAll<HTMLImageElement>(".paper img"));
+    if (!debugBoxes) {
+      imgs.forEach((img) => {
+        img.removeAttribute("data-mm");
+        img.removeAttribute("data-overflow");
+      });
+      return;
+    }
+    const measure = () => {
+      document.querySelectorAll<HTMLImageElement>(".paper img").forEach((img) => {
+        const r = img.getBoundingClientRect();
+        const w = r.width / PX_PER_MM;
+        const h = r.height / PX_PER_MM;
+        const isOpt = !!img.closest(".option, .options, .opt-text");
+        const capW = isOpt ? 34 : 45;
+        const capH = isOpt ? 34 : 45;
+        const parent = img.parentElement?.getBoundingClientRect();
+        const overflows =
+          w > capW + 0.6 ||
+          h > capH + 0.6 ||
+          (!!parent && r.width > parent.width + 1);
+        img.setAttribute("data-mm", `${w.toFixed(1)}×${h.toFixed(1)}mm`);
+        if (overflows) img.setAttribute("data-overflow", "1");
+        else img.removeAttribute("data-overflow");
+      });
+    };
+    measure();
+    const t = window.setTimeout(measure, 400);
+    window.addEventListener("resize", measure);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("resize", measure);
+    };
+  }, [debugBoxes, paperHtml]);
+
+
   const resetTemplate = (which: "header" | "question" | "option" | "css") => {
     if (which === "header") setHeaderTpl(DEFAULT_HEADER_TEMPLATE);
     if (which === "question") setQuestionTpl(DEFAULT_QUESTION_TEMPLATE);
