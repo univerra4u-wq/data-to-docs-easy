@@ -485,6 +485,12 @@
 }
 
 @media print {
+  /* keep debug boxes visible in the exported PDF */
+  .debug-diagrams .paper img,
+  .debug-diagrams .paper *:has(> img[data-mm])::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
   @page { size: A4; margin: 12mm 10mm; }
   html, body { background: #fff !important; }
   .no-print { display: none !important; }
