@@ -429,5 +429,19 @@
     break-inside: avoid;
     page-break-inside: avoid;
   }
+  /* Diagrams keep their physical mm caps in the PDF, never native px size */
+  .qimage img, .qtext img {
+    width: auto !important;
+    height: auto !important;
+    max-width: min(var(--diagram-max-w), 100%) !important;
+    max-height: var(--diagram-max-h) !important;
+  }
+  .opt-img, .opt-text img {
+    width: auto !important;
+    height: auto !important;
+    max-width: min(var(--diagram-opt-max-w), 100%) !important;
+    max-height: var(--diagram-opt-max-h) !important;
+  }
 }
+
 
