@@ -283,6 +283,8 @@ function Index() {
   const [optionTpl, setOptionTpl] = useState(DEFAULT_OPTION_TEMPLATE);
   const [customCss, setCustomCss] = useState(DEFAULT_CUSTOM_CSS);
   const [debugBoxes, setDebugBoxes] = useState(false);
+  const [columns, setColumns] = useState<1 | 2>(2);
+
 
   const validate = (text: string) => {
     setErrors([]);
