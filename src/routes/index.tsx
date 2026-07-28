@@ -459,12 +459,13 @@ function Index() {
     "--diagram-opt-max-w": `${layout.optionDiagramMm}mm`,
     "--diagram-opt-max-h": `${layout.optionDiagramMm}mm`,
     "--paper-font-size": `${layout.fontSizePt}pt`,
+    "--paper-print-font-size": `${layout.fontSizePt * 0.95}pt`,
     "--paper-line-height": String(layout.lineHeight),
     "--paper-column-gap": `${layout.columnGapMm}mm`,
     "--question-gap": `${layout.questionGapMm}mm`,
     "--option-row-gap": `${layout.optionGapMm}mm`,
-    "--table-font-scale": String(layout.tableScale),
-    "--math-scale": String(layout.mathScale),
+    "--table-font-size": `${layout.tableScale}em`,
+    "--math-font-size": `${layout.mathScale}em`,
   }) as CSSProperties, [layout]);
 
   const paperWrapClass = `paper-settings layout-option-${layout.optionColumns}`;
