@@ -1,0 +1,65 @@
+name: Layout regression
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: layout-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: ${{ matrix.fixture }} (desktop / tablet / mobile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture: [sample, long-tables, many-diagrams, math-heavy]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install app dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-cache-dir playwright pillow pymupdf
+
+      - name: Install Chromium for Playwright
+        run: python -m playwright install --with-deps chromium
+
+      - name: Start dev server
+        run: |
+          bun run dev --port 8080 > /tmp/dev-server.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:8080/ && exit 0
+            sleep 2
+          done
+          echo "dev server failed to start"
+          cat /tmp/dev-server.log
+          exit 1
+
+      - name: Run layout regression suite
+        run: python3 scripts/layout-regression.py --url http://localhost:8080 --fixtures ${{ matrix.fixture }}
+
+      - name: Upload dev server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-server-log-${{ matrix.fixture }}
+          path: /tmp/dev-server.log
+          if-no-files-found: ignore
