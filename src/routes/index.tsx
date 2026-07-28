@@ -100,8 +100,7 @@ const DEFAULT_QUESTION_TEMPLATE = `<div class="question">
 
 const DEFAULT_OPTION_TEMPLATE = `<li class="option">
   <span class="opt-num">({{index}})</span>
-  <span class="opt-text">{{text}}</span>
-  {{image}}
+  <span class="opt-text">{{text}}{{image}}</span>
 </li>`;
 
 const DEFAULT_CUSTOM_CSS = `/* Add or override styles. These apply to preview + print. */
