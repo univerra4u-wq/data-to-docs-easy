@@ -545,6 +545,9 @@
     print-color-adjust: exact;
   }
   @page { size: A4; margin: 12mm 10mm; }
+  /* Printing must never inherit the on-screen preview scaling */
+  .preview-frame .paper { width: auto; zoom: 1; }
+
   html, body { background: #fff !important; }
   .no-print { display: none !important; }
   .print-only { display: block !important; }
