@@ -366,7 +366,7 @@ def check_pdf(pdf: bytes, name: str, report: Report) -> None:
         return
     doc = fitz.open(stream=pdf, filetype="pdf")
     pt = 72 / 25.4
-    clipped = oversize = 0
+    clipped = oversize = text_out = 0
     for pg in doc:
         top, bottom = 12 * pt, pg.rect.height - 12 * pt
         for im in pg.get_image_info():
@@ -375,9 +375,20 @@ def check_pdf(pdf: bytes, name: str, report: Report) -> None:
                 clipped += 1
             if (x1 - x0) / pt > Q_CAP + TOL or (y1 - y0) / pt > Q_CAP + TOL:
                 oversize += 1
+        # Text/table content (long tables, display math) must also stay inside
+        # the printable band — a row straddling the margin means a torn table.
+        for b in pg.get_text("blocks"):
+            if b[1] < top - 2 or b[3] > bottom + 2:
+                text_out += 1
     print(f"\n[{name}/print] pages={doc.page_count}")
     report.check(clipped == 0, f"{name}/print: no diagram clipped by a page break", f"{clipped} clipped")
     report.check(oversize == 0, f"{name}/print: no diagram over 45mm on paper", f"{oversize} oversize")
+    report.check(
+        text_out == 0,
+        f"{name}/print: no text/table block crosses the page margin",
+        f"{text_out} blocks outside the printable area",
+    )
+
 
 
 async def run(url: str, names: list) -> int:
