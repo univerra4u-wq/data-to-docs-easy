@@ -337,3 +337,26 @@ templates stay exactly the same — only the print trigger changes.
 - `groupBySubject` (lines 194–203) — order-preserving grouping.
 - `buildQuestionsHtml` (lines 288–323) — the flat `.two-col` flow.
 - `window.print()` (line 355) — the PDF trigger.
+
+## Automated layout regression checks
+
+`scripts/layout-regression.py` renders `tests/fixtures/sample-paper.json`
+(30 questions: tall/wide/square diagrams, display math, captioned truth
+tables, long wrapping text) in headless Chromium against the dev server and
+asserts, for both the 1-column and 2-column layouts at desktop (1280),
+tablet (834) and mobile (390):
+
+- every diagram stays within its physical cap (45mm question, 34mm option)
+- no diagram overflows its container
+- no `.options` grid is fragmented across a column/page break
+- millimetre caps stay proportional at every breakpoint (the A4 sheet is
+  zoomed, never reflowed narrower)
+
+It then prints a real A4 PDF and verifies no image is clipped by a page
+boundary and none exceeds 45mm on paper.
+
+```bash
+python3 scripts/layout-regression.py                 # exit 0 = clean
+python3 scripts/layout-regression.py --url http://localhost:8080
+python3 scripts/layout-regression.py --write-fixture # regenerate sample JSON
+```
