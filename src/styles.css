@@ -442,8 +442,7 @@
   border-collapse: collapse;
   margin: 1.5mm 4mm 1.5mm 0;
   vertical-align: top;
-  font-size: 0.95em;
-  font-size: calc(var(--table-font-scale, 0.95) * 1em);
+  font-size: var(--table-font-size, 0.95em);
   text-align: center;
   table-layout: auto;
   break-inside: avoid;
@@ -504,7 +503,7 @@
   font-family: system-ui, sans-serif;
 }
 
-.katex { font-size: calc(var(--math-scale, 1) * 1em); }
+.katex { font-size: var(--math-font-size, 1em); }
 .katex-display { margin: 4px 0; overflow-x: clip; overflow-y: hidden; max-width: 100%; }
 .qtext .katex, .opt-text .katex { white-space: normal; }
 .qtext, .opt-text { overflow-wrap: break-word; word-break: normal; }
@@ -582,7 +581,7 @@
   html, body { background: #fff !important; }
   .no-print { display: none !important; }
   .print-only { display: block !important; }
-  .paper { font-size: calc(var(--paper-font-size, 10pt) * 0.95); }
+  .paper { font-size: var(--paper-print-font-size, 9.5pt); }
   /* Keep table borders and prevent any scroll container hiding cells */
   .qtext table, .opt-text table, .question table {
     -webkit-print-color-adjust: exact;
