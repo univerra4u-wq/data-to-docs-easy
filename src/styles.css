@@ -367,4 +367,20 @@
   .no-print { display: none !important; }
   .print-only { display: block !important; }
   .paper { font-size: 9.5pt; }
+  /* Keep table borders and prevent any scroll container hiding cells */
+  .qtext table, .opt-text table, .question table {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    overflow: visible !important;
+  }
+  .qtext table th, .opt-text table th, .question table th,
+  .qtext table td, .opt-text table td, .question table td {
+    border: 1px solid #000 !important;
+  }
+  .qtext table tr, .opt-text table tr, .question table tr,
+  .option, .options {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }
+
