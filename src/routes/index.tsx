@@ -392,7 +392,7 @@ function Index() {
       )
       .join("");
 
-  const questionsHtml = useMemo(buildQuestionsHtml, [grouped, questionTpl, optionTpl]);
+  const questionsHtml = useMemo(buildQuestionsHtml, [grouped, questionTpl, optionTpl, columns]);
 
   const paperHtml = `<div class="paper">${headerHtml}${
     grouped.length === 0
