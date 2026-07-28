@@ -456,18 +456,23 @@
     page-break-inside: avoid;
   }
   /* Diagrams keep their physical mm caps in the PDF, never native px size */
-  .qimage img, .qtext img {
+  .paper img, .qimage img, .qtext img {
     width: auto !important;
     height: auto !important;
-    max-width: min(var(--diagram-max-w), 100%) !important;
-    max-height: var(--diagram-max-h) !important;
+    max-width: min(var(--diagram-max-w, 45mm), 100%) !important;
+    max-height: var(--diagram-max-h, 45mm) !important;
+    object-fit: contain !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
-  .opt-img, .opt-text img {
+  .opt-img, .opt-text img, .option img, .options img {
     width: auto !important;
     height: auto !important;
-    max-width: min(var(--diagram-opt-max-w), 100%) !important;
-    max-height: var(--diagram-opt-max-h) !important;
+    max-width: min(var(--diagram-opt-max-w, 34mm), 100%) !important;
+    max-height: var(--diagram-opt-max-h, 34mm) !important;
   }
+  /* An image option must keep its number on the same line as the diagram */
+  .option:has(img) { align-items: flex-start; }
 }
 
 
