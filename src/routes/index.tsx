@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import katex from "katex";
 import { z } from "zod";
 import "katex/dist/katex.min.css";
@@ -50,6 +50,32 @@ const questionSchema = z.object({
 const paperSchema = z.array(questionSchema).min(1, "JSON must contain at least one question");
 
 type QItem = z.infer<typeof questionSchema>;
+
+type LayoutSettings = {
+  questionDiagramMm: number;
+  optionDiagramMm: number;
+  fontSizePt: number;
+  lineHeight: number;
+  columnGapMm: number;
+  questionGapMm: number;
+  optionGapMm: number;
+  tableScale: number;
+  mathScale: number;
+  optionColumns: "auto" | "1" | "2" | "4";
+};
+
+const DEFAULT_LAYOUT_SETTINGS: LayoutSettings = {
+  questionDiagramMm: 45,
+  optionDiagramMm: 34,
+  fontSizePt: 10,
+  lineHeight: 1.35,
+  columnGapMm: 8,
+  questionGapMm: 3,
+  optionGapMm: 1,
+  tableScale: 0.95,
+  mathScale: 1,
+  optionColumns: "auto",
+};
 
 // ---------- Meta ----------
 type Meta = {
@@ -204,29 +230,51 @@ function renderMath(input: string): string {
   const s = input;
   const parts: { type: "text" | "math"; value: string; display?: boolean }[] = [];
   let i = 0;
-  while (i < s.length) {
-    const pIdx = s.indexOf("\\(", i);
-    const dIdx = s.indexOf("\\[", i);
-    const $Idx = s.indexOf("$", i);
-    const cand = [pIdx, dIdx, $Idx].filter((x) => x >= 0);
-    if (cand.length === 0) {
-      parts.push({ type: "text", value: s.slice(i) });
-      break;
+
+  const isEscaped = (idx: number) => {
+    let slashes = 0;
+    for (let j = idx - 1; j >= 0 && s[j] === "\\"; j -= 1) slashes += 1;
+    return slashes % 2 === 1;
+  };
+
+  const findSingleDollarEnd = (from: number) => {
+    for (let j = from; j < s.length; j += 1) {
+      if (s[j] === "$" && !isEscaped(j) && s[j + 1] !== "$") return j;
     }
-    const next = Math.min(...cand);
+    return -1;
+  };
+
+  while (i < s.length) {
+    let next = -1;
+    let kind: "paren" | "bracket" | "double-dollar" | "single-dollar" | null = null;
+
+    for (let j = i; j < s.length; j += 1) {
+      if (s.startsWith("\\(", j)) { next = j; kind = "paren"; break; }
+      if (s.startsWith("\\[", j)) { next = j; kind = "bracket"; break; }
+      if (s.startsWith("$$", j) && !isEscaped(j)) { next = j; kind = "double-dollar"; break; }
+      if (s[j] === "$" && !isEscaped(j) && s[j + 1] !== "$") { next = j; kind = "single-dollar"; break; }
+    }
+
+    if (next < 0 || !kind) { parts.push({ type: "text", value: s.slice(i) }); break; }
     if (next > i) parts.push({ type: "text", value: s.slice(i, next) });
-    if (next === pIdx) {
+
+    if (kind === "paren") {
       const end = s.indexOf("\\)", next + 2);
       if (end < 0) { parts.push({ type: "text", value: s.slice(next) }); break; }
       parts.push({ type: "math", value: s.slice(next + 2, end), display: false });
       i = end + 2;
-    } else if (next === dIdx) {
+    } else if (kind === "bracket") {
       const end = s.indexOf("\\]", next + 2);
       if (end < 0) { parts.push({ type: "text", value: s.slice(next) }); break; }
       parts.push({ type: "math", value: s.slice(next + 2, end), display: true });
       i = end + 2;
+    } else if (kind === "double-dollar") {
+      const end = s.indexOf("$$", next + 2);
+      if (end < 0) { parts.push({ type: "text", value: s.slice(next) }); break; }
+      parts.push({ type: "math", value: s.slice(next + 2, end), display: true });
+      i = end + 2;
     } else {
-      const end = s.indexOf("$", next + 1);
+      const end = findSingleDollarEnd(next + 1);
       if (end < 0) { parts.push({ type: "text", value: s.slice(next) }); break; }
       parts.push({ type: "math", value: s.slice(next + 1, end), display: false });
       i = end + 1;
@@ -264,9 +312,10 @@ function groupBySubject(items: QItem[]) {
   for (const it of items) {
     const sub = it.subject || "Questions";
     if (!map.has(sub)) { map.set(sub, []); order.push(sub); }
-    map.get(sub)!.push(it);
+    const group = map.get(sub);
+    if (group) group.push(it);
   }
-  return order.map((s) => ({ subject: s, items: map.get(s)! }));
+  return order.map((s) => ({ subject: s, items: map.get(s) ?? [] }));
 }
 
 // ---------- Component ----------
@@ -276,7 +325,7 @@ function Index() {
   const [fileName, setFileName] = useState<string>("");
   const [items, setItems] = useState<QItem[] | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
-  const [tab, setTab] = useState<"data" | "header" | "templates">("data");
+  const [tab, setTab] = useState<"data" | "header" | "layout" | "templates">("data");
 
   const [headerTpl, setHeaderTpl] = useState(DEFAULT_HEADER_TEMPLATE);
   const [questionTpl, setQuestionTpl] = useState(DEFAULT_QUESTION_TEMPLATE);
@@ -284,7 +333,11 @@ function Index() {
   const [customCss, setCustomCss] = useState(DEFAULT_CUSTOM_CSS);
   const [debugBoxes, setDebugBoxes] = useState(false);
   const [columns, setColumns] = useState<1 | 2>(2);
+  const [layout, setLayout] = useState<LayoutSettings>(DEFAULT_LAYOUT_SETTINGS);
 
+  const setLayoutValue = <K extends keyof LayoutSettings>(key: K, value: LayoutSettings[K]) => {
+    setLayout((current) => ({ ...current, [key]: value }));
+  };
 
   const validate = (text: string) => {
     setErrors([]);
@@ -371,7 +424,7 @@ function Index() {
                     key: escapeHtml(k),
                     text: renderMath(q.options[k].text),
                     image: safeImageUrl(q.options[k].image ?? "")
-                      ? `<img class="opt-img" src="${safeImageUrl(q.options[k].image!)}" alt="" />`
+                      ? `<img class="opt-img" src="${safeImageUrl(q.options[k].image ?? "")}" alt="" />`
                       : "",
                   })
                 )
@@ -399,6 +452,23 @@ function Index() {
       ? `<div class="empty-state">${items ? "" : "Upload a JSON file to preview the paper."}</div>`
       : questionsHtml
   }</div>`;
+
+  const paperVars = useMemo(() => ({
+    "--diagram-max-w": `${layout.questionDiagramMm}mm`,
+    "--diagram-max-h": `${layout.questionDiagramMm}mm`,
+    "--diagram-opt-max-w": `${layout.optionDiagramMm}mm`,
+    "--diagram-opt-max-h": `${layout.optionDiagramMm}mm`,
+    "--paper-font-size": `${layout.fontSizePt}pt`,
+    "--paper-print-font-size": `${layout.fontSizePt * 0.95}pt`,
+    "--paper-line-height": String(layout.lineHeight),
+    "--paper-column-gap": `${layout.columnGapMm}mm`,
+    "--question-gap": `${layout.questionGapMm}mm`,
+    "--option-row-gap": `${layout.optionGapMm}mm`,
+    "--table-font-size": `${layout.tableScale}em`,
+    "--math-font-size": `${layout.mathScale}em`,
+  }) as CSSProperties, [layout]);
+
+  const paperWrapClass = `paper-settings layout-option-${layout.optionColumns}`;
 
   const canPrint = !!items && errors.length === 0;
 
@@ -439,6 +509,35 @@ function Index() {
       window.removeEventListener("resize", measure);
     };
   }, [debugBoxes, paperHtml]);
+
+  // Fit oversized rendered equations after KaTeX has produced its HTML. This
+  // prevents raw-wide matrices/integrals from leaking out of columns in print.
+  useEffect(() => {
+    const fitMath = () => {
+      document
+        .querySelectorAll<HTMLElement>(".paper .katex-display > .katex, .paper .opt-text > .katex, .paper .qtext > .katex")
+        .forEach((el) => {
+          el.style.fontSize = "";
+          el.removeAttribute("data-fit-scale");
+          const host = el.closest<HTMLElement>(".qtext, .opt-text, .question");
+          if (!host) return;
+          const available = host.getBoundingClientRect().width;
+          const actual = el.getBoundingClientRect().width;
+          if (actual > available && actual > 0) {
+            const scale = Math.max(0.62, Math.min(1, available / actual));
+            el.style.fontSize = `${scale.toFixed(3)}em`;
+            el.setAttribute("data-fit-scale", scale.toFixed(2));
+          }
+        });
+    };
+    fitMath();
+    const t = window.setTimeout(fitMath, 350);
+    window.addEventListener("resize", fitMath);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("resize", fitMath);
+    };
+  }, [paperHtml, layout.mathScale, layout.fontSizePt, layout.optionColumns]);
 
 
   const resetTemplate = (which: "header" | "question" | "option" | "css") => {
@@ -496,7 +595,7 @@ function Index() {
       <div className="no-print mx-auto max-w-6xl px-6 py-6 grid gap-6 md:grid-cols-[360px_1fr]">
         <aside className="space-y-4">
           <div className="flex gap-1 rounded-lg bg-background p-1 border">
-            {(["data", "header", "templates"] as const).map((t) => (
+            {(["data", "header", "layout", "templates"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -588,6 +687,47 @@ function Index() {
             </div>
           )}
 
+          {tab === "layout" && (
+            <div className="rounded-lg border bg-background p-4 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-semibold text-sm">PDF layout controls</h2>
+                <button
+                  onClick={() => setLayout(DEFAULT_LAYOUT_SETTINGS)}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  Reset
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <NumberControl label="Question image max" suffix="mm" min={20} max={70} step={1} value={layout.questionDiagramMm} onChange={(v) => setLayoutValue("questionDiagramMm", v)} />
+                <NumberControl label="Option image max" suffix="mm" min={15} max={50} step={1} value={layout.optionDiagramMm} onChange={(v) => setLayoutValue("optionDiagramMm", v)} />
+                <NumberControl label="Font size" suffix="pt" min={8} max={12} step={0.25} value={layout.fontSizePt} onChange={(v) => setLayoutValue("fontSizePt", v)} />
+                <NumberControl label="Line height" min={1.1} max={1.7} step={0.05} value={layout.lineHeight} onChange={(v) => setLayoutValue("lineHeight", v)} />
+                <NumberControl label="Column gap" suffix="mm" min={3} max={16} step={1} value={layout.columnGapMm} onChange={(v) => setLayoutValue("columnGapMm", v)} />
+                <NumberControl label="Question gap" suffix="mm" min={1} max={8} step={0.5} value={layout.questionGapMm} onChange={(v) => setLayoutValue("questionGapMm", v)} />
+                <NumberControl label="Option row gap" suffix="mm" min={0.25} max={5} step={0.25} value={layout.optionGapMm} onChange={(v) => setLayoutValue("optionGapMm", v)} />
+                <NumberControl label="Table scale" min={0.75} max={1.15} step={0.05} value={layout.tableScale} onChange={(v) => setLayoutValue("tableScale", v)} />
+                <NumberControl label="Math scale" min={0.75} max={1.15} step={0.05} value={layout.mathScale} onChange={(v) => setLayoutValue("mathScale", v)} />
+                <label className="block text-xs">
+                  <span className="text-muted-foreground">Option columns</span>
+                  <select
+                    value={layout.optionColumns}
+                    onChange={(e) => setLayoutValue("optionColumns", e.target.value as LayoutSettings["optionColumns"])}
+                    className="mt-1 w-full rounded border bg-background px-2 py-1 text-sm"
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="4">4</option>
+                  </select>
+                </label>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Image values are physical PDF millimetres, not uploaded pixel size.
+              </p>
+            </div>
+          )}
+
           {tab === "templates" && (
             <div className="space-y-4">
               <TemplateBox
@@ -631,15 +771,48 @@ function Index() {
         <section className="rounded-lg border bg-background p-4">
           <h2 className="mb-3 font-semibold text-sm text-muted-foreground">Preview</h2>
           <div className="preview-frame">
-            <div dangerouslySetInnerHTML={{ __html: paperHtml }} />
+            <div className={paperWrapClass} style={paperVars} dangerouslySetInnerHTML={{ __html: paperHtml }} />
           </div>
         </section>
       </div>
 
       <div className="print-only">
-        <div dangerouslySetInnerHTML={{ __html: paperHtml }} />
+        <div className={paperWrapClass} style={paperVars} dangerouslySetInnerHTML={{ __html: paperHtml }} />
       </div>
     </div>
+  );
+}
+
+function NumberControl({
+  label, suffix, min, max, step, value, onChange,
+}: {
+  label: string;
+  suffix?: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="block text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <div className="mt-1 flex items-center gap-1">
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            if (Number.isFinite(next)) onChange(Math.min(max, Math.max(min, next)));
+          }}
+          className="w-full rounded border px-2 py-1 text-sm"
+        />
+        {suffix && <span className="text-muted-foreground">{suffix}</span>}
+      </div>
+    </label>
   );
 }
 
