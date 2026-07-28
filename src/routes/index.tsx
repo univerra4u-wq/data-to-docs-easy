@@ -283,6 +283,8 @@ function Index() {
   const [optionTpl, setOptionTpl] = useState(DEFAULT_OPTION_TEMPLATE);
   const [customCss, setCustomCss] = useState(DEFAULT_CUSTOM_CSS);
   const [debugBoxes, setDebugBoxes] = useState(false);
+  const [columns, setColumns] = useState<1 | 2>(2);
+
 
   const validate = (text: string) => {
     setErrors([]);
@@ -359,7 +361,7 @@ function Index() {
         (g) =>
           `<section class="subject-section"><h2 class="subject-heading">${escapeHtml(
             g.subject
-          )}</h2><div class="two-col">${g.items
+          )}</h2><div class="two-col col-${columns}">${g.items
             .map((q) => {
               const keys = Object.keys(q.options);
               const optsHtml = keys
@@ -390,7 +392,7 @@ function Index() {
       )
       .join("");
 
-  const questionsHtml = useMemo(buildQuestionsHtml, [grouped, questionTpl, optionTpl]);
+  const questionsHtml = useMemo(buildQuestionsHtml, [grouped, questionTpl, optionTpl, columns]);
 
   const paperHtml = `<div class="paper">${headerHtml}${
     grouped.length === 0
@@ -460,6 +462,17 @@ function Index() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground select-none">
+              Layout
+              <select
+                value={columns}
+                onChange={(e) => setColumns(Number(e.target.value) === 1 ? 1 : 2)}
+                className="rounded-md border bg-background px-2 py-1 text-sm text-foreground"
+              >
+                <option value={2}>2 columns</option>
+                <option value={1}>1 column</option>
+              </select>
+            </label>
             <label className="flex items-center gap-2 text-sm text-muted-foreground select-none">
               <input
                 type="checkbox"
